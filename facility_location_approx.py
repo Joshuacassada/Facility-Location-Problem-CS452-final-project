@@ -1,16 +1,22 @@
+#!/usr/bin/env python3
 """
-Anytime stochastic greedy approximation for the Facility Location Problem.
+Anytime stochastic greedy approximation solver
+for the 2D Facility Location Problem.
 
-Requirements satisfied:
-- Polynomial time per run (greedy incremental facility opening).
-- Anytime behavior via -t time limit: runs multiple greedy restarts,
-  keeps best solution seen so far, and exits before the deadline.
-- Stochastic component: random tie-breaking and randomized initial choice.
-- Greedy: repeatedly adds the facility that most reduces total cost.
+Input format (from README):
 
-NOTE: You MUST adapt `read_instance` and `write_solution` to match
-the exact input/output format specified on Canvas (the same used by
-your exact/optimal solution architect code.
+f c
+<facility opening costs>
+<f lines of facility coords>
+<customer demands>
+<c lines of customer coords>
+
+Distances = Euclidean.
+
+Output format:
+
+<total_cost>
+facility_index: c1 c2 c3 ...
 """
 
 import sys
@@ -18,294 +24,237 @@ import time
 import math
 import random
 import argparse
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 
 
-# ----------------------------------------------------------------------
-# Problem representation
-# ----------------------------------------------------------------------
+# ----------------------------------------------------------
+# Problem Representation
+# ----------------------------------------------------------
 
 class FacilityLocationInstance:
-    """
-    Generic facility location instance with:
-      - m facilities
-      - n customers
-      - open_cost[j] : fixed cost to open facility j
-      - service_cost[i][j] : cost to serve customer i from facility j
-    """
-
     def __init__(
         self,
-        open_cost: List[float],
-        service_cost: List[List[float]],
+        facility_costs: List[float],
+        facility_coords: List[Tuple[float, float]],
+        customer_demands: List[float],
+        customer_coords: List[Tuple[float, float]],
     ):
-        self.m = len(open_cost)
-        self.n = len(service_cost)
-        self.open_cost = open_cost
-        self.service_cost = service_cost
-        if self.n == 0 or self.m == 0:
-            raise ValueError("Instance must have at least one facility and one customer.")
+        self.f = len(facility_costs)
+        self.c = len(customer_coords)
+        self.facility_costs = facility_costs
+        self.facility_coords = facility_coords
+        self.customer_demands = customer_demands
+        self.customer_coords = customer_coords
+
+        # Precompute distance * demand cost matrix
+        self.service_cost = [
+            [
+                customer_demands[i] *
+                math.dist(customer_coords[i], facility_coords[j])
+                for j in range(self.f)
+            ]
+            for i in range(self.c)
+        ]
 
 
-# ----------------------------------------------------------------------
-# I/O – ADAPT TO YOUR CANVAS FORMAT
-# ----------------------------------------------------------------------
+# ----------------------------------------------------------
+# Input / Output
+# ----------------------------------------------------------
 
-def read_instance(in_stream) -> FacilityLocationInstance:
+def read_instance(stream) -> FacilityLocationInstance:
     """
-    TODO: Replace this with the *exact* input format from Canvas.
+    Reads the 2D coordinate FLP format.
 
-    Example format (you may NOT be using this in your class):
-        Line 1: m n
-        Line 2: m space-separated opening costs
-        Next n lines: m space-separated service costs for each customer
-
-    Example:
-        3 4
-        10 12 8
-        5 7 4
-        6 2 9
-        3 3 3
-        9 1 5
-
-    This means:
-      - 3 facilities, 4 customers
-      - open_cost = [10, 12, 8]
-      - service_cost[0] = [5, 7, 4], etc.
+    f c
+    <facility opening costs>
+    <f lines of facility coords>
+    <customer demands>
+    <c lines of customer coords>
     """
-    data = []
-    for line in in_stream:
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        data.append(line)
+    # Read first line: f c
+    header = stream.readline().strip()
+    while header == "" or header.startswith("#"):
+        header = stream.readline().strip()
 
-    if not data:
-        raise ValueError("Empty input.")
+    f, c = map(int, header.split())
 
-    # Parse the example format
-    it = iter(data)
-    m_str, n_str = next(it).split()
-    m, n = int(m_str), int(n_str)
+    # Facility opening costs
+    facility_costs = list(map(float, stream.readline().split()))
+    if len(facility_costs) != f:
+        raise ValueError("Incorrect number of facility opening costs.")
 
-    open_cost = list(map(float, next(it).split()))
-    if len(open_cost) != m:
-        raise ValueError("Expected {} opening costs, got {}".format(m, len(open_cost)))
+    # Facility coordinates
+    facility_coords = []
+    for _ in range(f):
+        x, y = map(float, stream.readline().split())
+        facility_coords.append((x, y))
 
-    service_cost: List[List[float]] = []
-    for _ in range(n):
-        row = list(map(float, next(it).split()))
-        if len(row) != m:
-            raise ValueError("Expected {} service costs per customer.".format(m))
-        service_cost.append(row)
+    # Customer demands
+    customer_demands = list(map(float, stream.readline().split()))
+    if len(customer_demands) != c:
+        raise ValueError("Incorrect number of customer demands.")
 
-    return FacilityLocationInstance(open_cost, service_cost)
+    # Customer coordinates
+    customer_coords = []
+    for _ in range(c):
+        x, y = map(float, stream.readline().split())
+        customer_coords.append((x, y))
+
+    return FacilityLocationInstance(
+        facility_costs, facility_coords,
+        customer_demands, customer_coords
+    )
 
 
-def write_solution(
-    out_stream,
-    total_cost: float,
-    open_facilities: List[bool],
-    assignment: List[int],
-):
+def write_solution(out, cost, open_facilities, assignment):
     """
-    TODO: Replace this with the *exact* output format from Canvas.
+    Output format:
 
-    Example simple format:
-
-      Line 1: total_cost
-      Line 2: indices of open facilities (0-based) separated by spaces
-      Next n lines: facility index serving customer i
-
-    Adjust to whatever your optimal solver uses.
+    <total_cost>
+    facility_index: customer_1 customer_2 ...
     """
-    m = len(open_facilities)
-    n = len(assignment)
+    print(f"{cost:.2f}", file=out)
 
-    open_indices = [str(j) for j in range(m) if open_facilities[j]]
+    f = len(open_facilities)
+    groups = {j: [] for j in range(f) if open_facilities[j]}
 
-    print(f"{total_cost:.6f}", file=out_stream)
-    print(" ".join(open_indices), file=out_stream)
-    for i in range(n):
-        print(assignment[i], file=out_stream)
+    for i, j in enumerate(assignment):
+        groups[j].append(i)
+
+    for j in groups:
+        custs = " ".join(str(i) for i in groups[j])
+        print(f"{j}: {custs}", file=out)
 
 
-# ----------------------------------------------------------------------
-# Greedy anytime approximation
-# ----------------------------------------------------------------------
+# ----------------------------------------------------------
+# Greedy Anytime Approximation
+# ----------------------------------------------------------
 
-def evaluate_solution(
-    inst: FacilityLocationInstance,
-    open_facilities: List[bool],
-    assignment: List[int]
-) -> float:
-    """Compute total cost for a complete solution."""
-    m, n = inst.m, inst.n
-    assert len(open_facilities) == m
-    assert len(assignment) == n
-
+def evaluate(inst: FacilityLocationInstance,
+             open_fac,
+             assignment) -> float:
+    """Compute true total cost (without noise)."""
     total = 0.0
-    # Opening costs
-    for j in range(m):
-        if open_facilities[j]:
-            total += inst.open_cost[j]
-    # Assignment costs
-    for i in range(n):
-        j = assignment[i]
-        total += inst.service_cost[i][j]
+    # opening costs
+    for j in range(inst.f):
+        if open_fac[j]:
+            total += inst.facility_costs[j]
+    # assignment costs
+    for i in range(inst.c):
+        total += inst.service_cost[i][assignment[i]]
     return total
 
 
-def greedy_construct(
-    inst: FacilityLocationInstance,
-    deadline: float,
-) -> Tuple[float, List[bool], List[int]]:
+def greedy_build(inst: FacilityLocationInstance,
+                 deadline: float):
     """
-    Single greedy run:
-    1. Choose an initial facility to open (randomized among near-best choices).
-    2. Assign all customers to that facility.
-    3. Repeatedly add the facility that yields the largest cost reduction.
-       Stop when no facility improves the cost or when near the deadline.
+    One greedy construction with randomization:
 
-    Time complexity per run is polynomial: O(m^2 * n).
+    - Random initial facility
+    - Tiny random noise on service costs to induce variation
+    - Greedy additions with random tie-breaking
     """
+    f, c = inst.f, inst.c
 
-    m, n = inst.m, inst.n
+    # Tiny noise to induce randomness in choices
+    noise_scale = 1e-4
+    noise = [
+        [random.uniform(-noise_scale, noise_scale) for _ in range(f)]
+        for _ in range(c)
+    ]
 
-    # ---------------------------
-    # Step 1: choose initial facility
-    # ---------------------------
-    # For each facility j, compute cost if only j is open
-    #   cost_j = open_cost[j] + sum_i service_cost[i][j]
-    # Then pick randomly among facilities whose cost_j is within
-    # some epsilon of the best.
-    base_costs = []
-    for j in range(m):
-        if time.time() >= deadline:
-            break
-        cost_j = inst.open_cost[j]
-        for i in range(n):
-            cost_j += inst.service_cost[i][j]
-        base_costs.append((cost_j, j))
+    # ------------------------------------------------------
+    # Step 1: choose a random initial facility (stochastic)
+    # ------------------------------------------------------
+    start_fac = random.randrange(f)
 
-    base_costs.sort(key=lambda x: x[0])
-    if not base_costs:
-        # fallback (shouldn't happen with valid instance)
-        j0 = 0
-    else:
-        best_cost = base_costs[0][0]
-        # allow some slack (e.g., up to 5% worse than best) for randomness
-        candidates = [j for (c, j) in base_costs
-                      if c <= best_cost * 1.05 + 1e-9]
-        j0 = random.choice(candidates)
+    open_fac = [False] * f
+    open_fac[start_fac] = True
+    assignment = [start_fac] * c
+    current_cost = evaluate(inst, open_fac, assignment)
 
-    # Open initial facility
-    open_fac = [False] * m
-    open_fac[j0] = True
-
-    # Assign all customers to j0
-    assignment = [j0] * n
-    current_total = evaluate_solution(inst, open_fac, assignment)
-
-    # ---------------------------
-    # Step 2: greedy additions
-    # ---------------------------
+    # ------------------------------------------------------
+    # Step 2: greedy additions (with noisy comparisons)
+    # ------------------------------------------------------
     while time.time() < deadline:
         best_delta = 0.0
-        best_js: List[int] = []  # all facilities achieving best_delta (for random tie-break)
+        best_js = []
 
-        # For each unopened facility, check cost if we open it
-        for j in range(m):
+        for j in range(f):
             if open_fac[j]:
                 continue
             if time.time() >= deadline:
                 break
 
-            # Compute cost if we open facility j and reassign customers greedily
-            # to min(current service cost, service_cost to j).
-            # We don't commit yet; just compute delta.
             delta_assign = 0.0
-            for i in range(n):
-                # current cost serving i
-                current_c_ij = inst.service_cost[i][assignment[i]]
-                new_c_ij = inst.service_cost[i][j]
-                if new_c_ij < current_c_ij:
-                    delta_assign += (new_c_ij - current_c_ij)
-                # else no change
+            for i in range(c):
+                old = assignment[i]
+                new_cost = inst.service_cost[i][j] + noise[i][j]
+                old_cost = inst.service_cost[i][old] + noise[i][old]
+                if new_cost < old_cost:
+                    delta_assign += (new_cost - old_cost)
 
-            # Opening cost is added
-            delta_total = inst.open_cost[j] + delta_assign  # delta relative to current_total
+            delta_total = inst.facility_costs[j] + delta_assign
 
-            if delta_total < best_delta - 1e-9:
-                # Strictly better
+            if delta_total < best_delta - 1e-12:
                 best_delta = delta_total
                 best_js = [j]
-            elif abs(delta_total - best_delta) <= 1e-9:
-                # Tie: add for random tie-breaking
+            elif abs(delta_total - best_delta) < 1e-12:
                 best_js.append(j)
 
-        # If no improving facility, we are done
-        if best_delta >= -1e-9 or not best_js:
+        # No improving facility found -> stop
+        if best_delta >= -1e-12 or not best_js:
             break
 
-        # Choose facility randomly among the best (stochastic tie-breaking)
-        chosen_j = random.choice(best_js)
+        # Random tie-breaking among best facilities
+        chosen = random.choice(best_js)
+        open_fac[chosen] = True
 
-        # Actually open chosen_j and reassign customers
-        open_fac[chosen_j] = True
-        for i in range(n):
-            old_fac = assignment[i]
-            if inst.service_cost[i][chosen_j] < inst.service_cost[i][old_fac]:
-                assignment[i] = chosen_j
+        # Reassign customers using same noisy costs
+        for i in range(c):
+            old = assignment[i]
+            new_cost = inst.service_cost[i][chosen] + noise[i][chosen]
+            old_cost = inst.service_cost[i][old] + noise[i][old]
+            if new_cost < old_cost:
+                assignment[i] = chosen
 
-        current_total += best_delta
+        # Update approximate cost (for internal consistency)
+        current_cost += best_delta
 
-    # End greedy run
-    return current_total, open_fac, assignment
+    # Return the *true* cost using the actual cost function
+    true_cost = evaluate(inst, open_fac, assignment)
+    return true_cost, open_fac, assignment
 
 
-def anytime_stochastic_greedy(
-    inst: FacilityLocationInstance,
-    time_limit: float,
-    seed: Optional[int] = None,
-) -> Tuple[float, List[bool], List[int]]:
+def anytime(inst: FacilityLocationInstance,
+            t: float,
+            seed=None):
     """
     Anytime wrapper:
-      - Runs greedy_construct repeatedly with different randomness
-      - Keeps best solution seen so far
-      - Stops before the time_limit is exceeded
+    - Keeps running greedy_build while time remains.
+    - Keeps the best solution found so far.
     """
-
     if seed is not None:
         random.seed(seed)
 
     start = time.time()
-    deadline = start + max(0.01, time_limit)  # tiny minimum
+    deadline = start + t
 
-    # Initial run
-    best_cost, best_open, best_assign = greedy_construct(inst, deadline)
+    best_cost, best_open, best_assign = greedy_build(inst, deadline)
 
-    # Additional random restarts if time allows
-    runs = 1
     while time.time() < deadline:
-        runs += 1
-        cost, open_fac, assign = greedy_construct(inst, deadline)
+        cost, open_f, assign = greedy_build(inst, deadline)
         if cost < best_cost:
-            best_cost = cost
-            best_open = open_fac
-            best_assign = assign
-
-    # You can print to stderr if you want debug info (not required)
-    # sys.stderr.write(f"Anytime runs: {runs}, best_cost: {best_cost:.4f}\n")
+            best_cost, best_open, best_assign = cost, open_f, assign
 
     return best_cost, best_open, best_assign
 
 
-# ----------------------------------------------------------------------
+# ----------------------------------------------------------
 # Main
-# ----------------------------------------------------------------------
+# ----------------------------------------------------------
 
-def parse_args(argv):
+def main():
     parser = argparse.ArgumentParser(
         description="Anytime stochastic greedy approximation for facility location."
     )
@@ -313,46 +262,31 @@ def parse_args(argv):
         "-t",
         type=float,
         required=True,
-        help="Time limit in seconds (anytime requirement).",
+        help="Time limit in seconds",
     )
     parser.add_argument(
         "input_file",
         nargs="?",
-        default=None,
-        help="Optional input file (otherwise read from stdin).",
+        default="-",
+        help="Input file (or - / omitted for stdin)",
     )
     parser.add_argument(
         "--seed",
         type=int,
         default=None,
-        help="Random seed for reproducibility (optional).",
+        help="Random seed (optional, for reproducibility)",
     )
-    return parser.parse_args(argv)
+    args = parser.parse_args()
 
-
-def main(argv=None):
-    if argv is None:
-        argv = sys.argv[1:]
-    args = parse_args(argv)
-
-    # Read instance
-    if args.input_file is None or args.input_file == "-":
+    if args.input_file == "-" or args.input_file is None:
         inst = read_instance(sys.stdin)
     else:
-        with open(args.input_file, "r") as f:
+        with open(args.input_file) as f:
             inst = read_instance(f)
 
-    # Run anytime approximation
-    best_cost, best_open, best_assign = anytime_stochastic_greedy(
-        inst,
-        time_limit=args.t,
-        seed=args.seed,
-    )
-
-    # Output solution in required format
-    write_solution(sys.stdout, best_cost, best_open, best_assign)
+    cost, open_fac, assignment = anytime(inst, args.t, seed=args.seed)
+    write_solution(sys.stdout, cost, open_fac, assignment)
 
 
 if __name__ == "__main__":
     main()
-
