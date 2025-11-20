@@ -1,0 +1,14 @@
+Number of facilities: 3
+Number of customers: 5
+
+Facility coordinates (x, y) and opening cost:
+F1: (2, 3), cost = 12
+F2: (8, 1), cost = 10
+F3: (5, 7), cost = 15
+
+Customer coordinates (x, y) and demand:
+C1: (1, 1), demand = 3
+C2: (3, 4), demand = 5
+C3: (6, 2), demand = 4
+C4: (4, 6), demand = 6
+C5: (9, 3), demand = 2
