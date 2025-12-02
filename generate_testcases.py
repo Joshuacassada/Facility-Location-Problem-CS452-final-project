@@ -64,7 +64,7 @@ def main():
     for (f, c) in small_params:
         for _ in range(5):  # 5 cases per size → 25 total
             fac_costs, fac_coords, demands, cust_coords = gen_case(f, c, 0, 100, 0, 100)
-            write_case(f"test_cases/test_small_{idx:02d}.txt",
+            write_case(f"testcases/test_small_{idx:02d}.txt",
                        fac_costs, fac_coords, demands, cust_coords)
             idx += 1
 
@@ -81,7 +81,7 @@ def main():
     for (f, c) in large_params:
         for _ in range(10):  # 10 per size → 50 total
             fac_costs, fac_coords, demands, cust_coords = gen_case(f, c, -50, 150, -50, 150)
-            write_case(f"test_cases/test_large_{idx:02d}.txt",
+            write_case(f"testcases/test_large_{idx:02d}.txt",
                        fac_costs, fac_coords, demands, cust_coords)
             idx += 1
 
@@ -89,7 +89,7 @@ def main():
     # This one must be labelled in run_test_cases.sh
     f, c = 150, 2000
     fac_costs, fac_coords, demands, cust_coords = gen_case(f, c, -100, 200, -100, 200)
-    write_case("test_cases/test_extreme_60min_optimal_only.txt",
+    write_case("testcases/test_extreme_60min_optimal_only.txt",
                fac_costs, fac_coords, demands, cust_coords)
 
     print("✔ All test cases generated.")
