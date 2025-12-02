@@ -3,7 +3,7 @@
 Anytime stochastic greedy approximation solver
 for the 2D Facility Location Problem.
 
-Input format (from README):
+Input format:
 
 f c
 <facility opening costs>
@@ -17,6 +17,8 @@ Output format:
 
 <total_cost>
 facility_index: c1 c2 c3 ...
+
+Only open facilities are printed.
 """
 
 import sys
@@ -46,7 +48,7 @@ class FacilityLocationInstance:
         self.customer_demands = customer_demands
         self.customer_coords = customer_coords
 
-        # Precompute distance * demand cost matrix
+        # Precompute service_cost[i][j] = demand_i * dist(customer i, facility j)
         self.service_cost = [
             [
                 customer_demands[i] *
@@ -71,11 +73,10 @@ def read_instance(stream) -> FacilityLocationInstance:
     <customer demands>
     <c lines of customer coords>
     """
-    # Read first line: f c
+    # First non-empty, non-comment line: f c
     header = stream.readline().strip()
     while header == "" or header.startswith("#"):
         header = stream.readline().strip()
-
     f, c = map(int, header.split())
 
     # Facility opening costs
@@ -145,68 +146,104 @@ def evaluate(inst: FacilityLocationInstance,
     return total
 
 
-def greedy_build(inst: FacilityLocationInstance,
-                 deadline: float):
+def greedy_build(inst: FacilityLocationInstance):
     """
-    One greedy construction with randomization:
+    One greedy construction with randomization.
 
-    - Random initial facility
-    - Tiny random noise on service costs to induce variation
-    - Greedy additions with random tie-breaking
+    Approach (approximation, not exact):
+
+    1. Add random noise to service costs (tiny perturbation).
+    2. Randomly choose a small initial subset of facilities to open.
+    3. Assign each customer to its cheapest open facility (noisy cost).
+    4. Greedily add facilities that improve the noisy objective,
+       breaking ties randomly.
+    5. Return the solution evaluated with the *true* cost.
+
+    This runs in polynomial time:
+      - Each greedy step scans all facilities (O(f)).
+      - For each facility, scans all customers (O(c)).
+      - At most f greedy steps.
+      => O(f^2 * c) time per construction.
     """
     f, c = inst.f, inst.c
 
-    # Tiny noise to induce randomness in choices
-    noise_scale = 1e-4
+    # Noise to induce variation (larger than 1e-4 so we actually see variability)
+    noise_scale = 1e-2
     noise = [
         [random.uniform(-noise_scale, noise_scale) for _ in range(f)]
         for _ in range(c)
     ]
 
-    # ------------------------------------------------------
-    # Step 1: choose a random initial facility (stochastic)
-    # ------------------------------------------------------
-    start_fac = random.randrange(f)
-
+    # Start with all facilities closed
     open_fac = [False] * f
-    open_fac[start_fac] = True
-    assignment = [start_fac] * c
-    current_cost = evaluate(inst, open_fac, assignment)
+    assignment = [0] * c
 
-    # ------------------------------------------------------
-    # Step 2: greedy additions (with noisy comparisons)
-    # ------------------------------------------------------
-    while time.time() < deadline:
+    # Random initial subset size: between 1 and max(1, f // 4)
+    k_max = max(1, f // 4)
+    k0 = random.randint(1, k_max)
+    initial_open = random.sample(range(f), k0)
+    for j in initial_open:
+        open_fac[j] = True
+
+    # Initial assignment: cheapest noisy cost among open facilities
+    for i in range(c):
+        best_j = None
+        best_cost = float("inf")
+        for j in range(f):
+            if not open_fac[j]:
+                continue
+            cost_ij = inst.service_cost[i][j] + noise[i][j]
+            if cost_ij < best_cost:
+                best_cost = cost_ij
+                best_j = j
+        # should always be set
+        assignment[i] = best_j
+
+    # Compute approximate current cost using noisy costs
+    current_cost = 0.0
+    for j in range(f):
+        if open_fac[j]:
+            current_cost += inst.facility_costs[j]
+    for i in range(c):
+        j = assignment[i]
+        current_cost += inst.service_cost[i][j] + noise[i][j]
+
+    # Repeatedly try opening new facilities greedily
+    while True:
         best_delta = 0.0
         best_js = []
 
         for j in range(f):
             if open_fac[j]:
                 continue
-            if time.time() >= deadline:
-                break
 
             delta_assign = 0.0
+            # Effect on assignment costs if we allow assignment to j
             for i in range(c):
                 old = assignment[i]
-                new_cost = inst.service_cost[i][j] + noise[i][j]
                 old_cost = inst.service_cost[i][old] + noise[i][old]
+                new_cost = inst.service_cost[i][j] + noise[i][j]
                 if new_cost < old_cost:
                     delta_assign += (new_cost - old_cost)
 
-            delta_total = inst.facility_costs[j] + delta_assign
+            # Opening cost (we pay this)
+            delta_open = inst.facility_costs[j]
 
-            if delta_total < best_delta - 1e-12:
-                best_delta = delta_total
+            # Total change in approximate cost if we open j
+            delta = delta_open + delta_assign  # want negative
+
+            if delta < best_delta:
+                best_delta = delta
                 best_js = [j]
-            elif abs(delta_total - best_delta) < 1e-12:
+            elif abs(delta - best_delta) < 1e-12:
+                # Tie: collect for random tie-breaking
                 best_js.append(j)
 
-        # No improving facility found -> stop
-        if best_delta >= -1e-12 or not best_js:
+        # If no improving facility, stop
+        if best_delta >= 0.0 or not best_js:
             break
 
-        # Random tie-breaking among best facilities
+        # Random tie-breaking among best improving facilities
         chosen = random.choice(best_js)
         open_fac[chosen] = True
 
@@ -221,7 +258,7 @@ def greedy_build(inst: FacilityLocationInstance,
         # Update approximate cost (for internal consistency)
         current_cost += best_delta
 
-    # Return the *true* cost using the actual cost function
+    # Return the *true* cost using the actual cost function (no noise)
     true_cost = evaluate(inst, open_fac, assignment)
     return true_cost, open_fac, assignment
 
@@ -231,8 +268,13 @@ def anytime(inst: FacilityLocationInstance,
             seed=None):
     """
     Anytime wrapper:
-    - Keeps running greedy_build while time remains.
+    - Repeatedly runs greedy_build while time remains.
     - Keeps the best solution found so far.
+    - Terminates when the time limit t (seconds) is reached.
+
+    This satisfies the "anytime" requirement: at any interruption
+    time, we have a current best solution, and longer runtimes
+    tend to yield better solutions in expectation.
     """
     if seed is not None:
         random.seed(seed)
@@ -240,12 +282,19 @@ def anytime(inst: FacilityLocationInstance,
     start = time.time()
     deadline = start + t
 
-    best_cost, best_open, best_assign = greedy_build(inst, deadline)
+    # At least one run
+    best_cost, best_open, best_assign = greedy_build(inst)
+    runs = 1
 
+    # Keep restarting as long as we have time
     while time.time() < deadline:
-        cost, open_f, assign = greedy_build(inst, deadline)
+        cost, open_f, assign = greedy_build(inst)
+        runs += 1
         if cost < best_cost:
             best_cost, best_open, best_assign = cost, open_f, assign
+
+    # You can uncomment this for debugging:
+    # print(f"Anytime runs: {runs}", file=sys.stderr)
 
     return best_cost, best_open, best_assign
 
