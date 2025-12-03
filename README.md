@@ -68,6 +68,8 @@ Coverage:
 - Facility2 covers: Bob, Diana
 
 
+
+
 Overall Example input explained:
 
 Number of Clients and Number of Facilities

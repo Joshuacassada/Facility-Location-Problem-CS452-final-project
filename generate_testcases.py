@@ -1,98 +1,85 @@
 #!/usr/bin/env python3
+import os
 import random
-import math
 
-def gen_case(f, c, xmin, xmax, ymin, ymax):
-    """Generate a single facility-location instance.
+# -----------------------------------------
+# Helper to write a single test case
+# -----------------------------------------
+def write_case(path, n_clients, n_facilities, coverage_dist, grid_size=100):
+    with open(path, "w") as f:
+        f.write(f"{n_clients} {n_facilities}\n")
 
-    f = number of facilities
-    c = number of customers
-    coordinates are uniform random in bounding box
-    demands are random integers (1–10)
-    facility opening costs are random (5–50)
-    """
-    fac_costs = [round(random.uniform(5, 50), 2) for _ in range(f)]
+        # clients
+        for i in range(1, n_clients + 1):
+            x = random.uniform(0, grid_size)
+            y = random.uniform(0, grid_size)
+            f.write(f"C{i} {x:.2f} {y:.2f}\n")
 
-    fac_coords = [
-        (round(random.uniform(xmin, xmax), 2),
-         round(random.uniform(ymin, ymax), 2))
-        for _ in range(f)
-    ]
+        # facilities
+        for j in range(1, n_facilities + 1):
+            x = random.uniform(0, grid_size)
+            y = random.uniform(0, grid_size)
+            f.write(f"F{j} {x:.2f} {y:.2f} 0\n")
 
-    demands = [random.randint(1, 10) for _ in range(c)]
-
-    cust_coords = [
-        (round(random.uniform(xmin, xmax), 2),
-         round(random.uniform(ymin, ymax), 2))
-        for _ in range(c)
-    ]
-
-    return fac_costs, fac_coords, demands, cust_coords
+        f.write(f"{coverage_dist}\n")
 
 
-def write_case(filename, fac_costs, fac_coords, demands, cust_coords):
-    f = len(fac_costs)
-    c = len(demands)
-
-    with open(filename, "w") as f_out:
-        f_out.write(f"{f} {c}\n")
-        f_out.write(" ".join(map(str, fac_costs)) + "\n")
-
-        for (x, y) in fac_coords:
-            f_out.write(f"{x} {y}\n")
-
-        f_out.write(" ".join(map(str, demands)) + "\n")
-
-        for (x, y) in cust_coords:
-            f_out.write(f"{x} {y}\n")
-
-
+# -----------------------------------------
+# Generate all test cases
+# -----------------------------------------
 def main():
-    random.seed(42)  # deterministic reproducibility
+    random.seed(42)  # reproducible
 
-    # --- 25 SMALL TEST CASES (optimal-known group) ---
-    # Good sizes for exact solver (optimal):
-    small_params = [
-        (5, 15),   # very easy
-        (6, 20),
-        (7, 25),
-        (8, 30),
-        (10, 40)
-    ]
+    base = "testcases"
+    os.makedirs(base, exist_ok=True)
 
-    idx = 1
-    for (f, c) in small_params:
-        for _ in range(5):  # 5 cases per size → 25 total
-            fac_costs, fac_coords, demands, cust_coords = gen_case(f, c, 0, 100, 0, 100)
-            write_case(f"testcases/test_small_{idx:02d}.txt",
-                       fac_costs, fac_coords, demands, cust_coords)
-            idx += 1
+    small_dir = os.path.join(base, "small")
+    large_dir = os.path.join(base, "large")
+    extreme_dir = os.path.join(base, "extreme")
 
-    # --- 50 LARGE TEST CASES (hard for optimal) ---
-    large_params = [
-        (25, 150),
-        (30, 200),
-        (40, 300),
-        (50, 400),
-        (75, 600)
-    ]
+    os.makedirs(small_dir, exist_ok=True)
+    os.makedirs(large_dir, exist_ok=True)
+    os.makedirs(extreme_dir, exist_ok=True)
 
-    idx = 1
-    for (f, c) in large_params:
-        for _ in range(10):  # 10 per size → 50 total
-            fac_costs, fac_coords, demands, cust_coords = gen_case(f, c, -50, 150, -50, 150)
-            write_case(f"testcases/test_large_{idx:02d}.txt",
-                       fac_costs, fac_coords, demands, cust_coords)
-            idx += 1
+    # -------------------------------
+    # 25 SMALL CASES (easy for optimal)
+    # -------------------------------
+    for i in range(1, 26):
+        n_clients = random.randint(5, 12)
+        n_facilities = random.randint(3, 8)
+        coverage = random.uniform(5, 15)
+        filename = f"small_{i:02d}.txt"
+        write_case(os.path.join(small_dir, filename),
+                   n_clients, n_facilities, coverage)
 
-    # --- EXTREME CASE (exact solver > 60 minutes) ---
-    # This one must be labelled in run_test_cases.sh
-    f, c = 150, 2000
-    fac_costs, fac_coords, demands, cust_coords = gen_case(f, c, -100, 200, -100, 200)
-    write_case("testcases/test_extreme_60min_optimal_only.txt",
-               fac_costs, fac_coords, demands, cust_coords)
+    # -------------------------------
+    # 25 LARGE CASES (optimal solver struggles)
+    # -------------------------------
+    for i in range(1, 26):
+        n_clients = random.randint(40, 70)
+        n_facilities = random.randint(25, 40)
+        coverage = random.uniform(8, 20)
+        filename = f"large_{i:02d}.txt"
+        write_case(os.path.join(large_dir, filename),
+                   n_clients, n_facilities, coverage, grid_size=200)
 
-    print("✔ All test cases generated.")
+    # -------------------------------
+    # EXTREME HARD CASE (optimal ~5 min)
+    #
+    # This size is known to explode optimal facility-location solvers:
+    #      ~150 clients
+    #      ~100 facilities
+    #
+    # The combination space becomes enormous.
+    # -------------------------------
+    filename = "extreme_hard.txt"
+    write_case(os.path.join(extreme_dir, filename),
+               n_clients=150,
+               n_facilities=100,
+               coverage_dist=12.0,
+               grid_size=300)
+
+    print("Test cases generated successfully!")
 
 
 if __name__ == "__main__":

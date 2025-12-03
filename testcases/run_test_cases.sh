@@ -1,36 +1,37 @@
-#!/usr/bin/env bash
-# run_test_cases.sh
-#
-# Runs the approximation solver on all test cases.
-# Prints results directly to the terminal (NO .out files created)
+#!/bin/bash
 
-set -euo pipefail
+echo "Running approximation solver on all test cases..."
+echo
 
-APPROX="../facility_location_approx.py"
-TIME_LIMIT=1   # seconds per test; adjust as needed
+SOLVER="../facility_location_approx.py"
 
-echo "Running SMALL test cases..."
-for f in test_small_*.txt; do
-    echo
-    echo "----------------------------------------"
-    echo "  Running $f"
-    echo "----------------------------------------"
-    python "$APPROX" -t "$TIME_LIMIT" "$f"
+# ------------------------------
+# Run SMALL cases
+# ------------------------------
+echo "===== SMALL TEST CASES (should be fast) ====="
+for f in small/*.txt; do
+    echo "Running $f ..."
+    python3 $SOLVER -t 1.0 $f --seed 123
 done
 
+# ------------------------------
+# Run LARGE cases
+# ------------------------------
 echo
-echo "Running LARGE test cases..."
-for f in test_large_*.txt; do
-    echo
-    echo "----------------------------------------"
-    echo "  Running $f"
-    echo "----------------------------------------"
-    python "$APPROX" -t "$TIME_LIMIT" "$f"
+echo "===== LARGE TEST CASES (optimal solver would struggle) ====="
+for f in large/*.txt; do
+    echo "Running $f ..."
+    python3 $SOLVER -t 1.0 $f --seed 123
 done
 
+# ------------------------------
+# EXTREME case — mark for professor
+# ------------------------------
 echo
-echo "# NOTE: This case would take more than 60 minutes for the exact solver:"
-echo "#   test_extreme_60min_optimal_only.txt"
-echo "# Uncomment below to run the approximation on it."
+echo "===== EXTREME HARD TEST CASE ====="
+echo "# This test case is designed so the EXACT SOLVER would take ~5 minutes"
+echo "# DO NOT attempt full optimal search — approximation runs fine"
+python3 $SOLVER -t 2.0 extreme/extreme_hard.txt --seed 123
 
-# python "$APPROX" -t "$TIME_LIMIT" test_extreme_60min_optimal_only.txt
+echo
+echo "All tests completed."
