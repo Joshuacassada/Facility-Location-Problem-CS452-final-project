@@ -1,87 +1,84 @@
-Facility Location Problem – Exact Solver
-========================================
+Running Time Analysis
 
-Program Description:
--------------------
-This program computes the exact optimal solution for the Facility Location Problem (FLP) using a brute-force approach. 
-Given a set of potential facilities (each with an opening cost and coordinates) and a set of customers (with coordinates), 
-the program determines which subset of facilities to open to minimize the total cost, where the total cost is defined as:
+This project computes the Exact Solution to the Facility Location / Set Cover–style covering problem using exhaustive search.
+Given:
 
-    Total cost = Sum of opening costs of opened facilities + Sum of Euclidean distances from each customer to their nearest open facility.
+F = number of facilities
 
-The program can handle small to moderate numbers of facilities efficiently. The runtime grows exponentially with the number of facilities, but linearly with the number of customers.
+C = number of clients
 
-----------------------------------------
-Running Time Complexity (O-notation):
-----------------------------------------
-Let:
-    f = number of potential facilities
-    c = number of customers
+A fixed coverage radius R
 
-- The program enumerates all non-empty subsets of facilities: there are 2^f - 1 subsets.
-- For each subset, it computes the assignment cost for each customer to their nearest open facility (O(c * |subset|) ≤ O(c*f)).
+The program must determine the minimum number of facilities whose coverage collectively reaches all clients.
 
-Therefore, the total runtime is:
+Algorithmic Running Time
 
-    O(2^f * c * f)
+The solver tries every subset of facilities until it finds the smallest feasible one.
+Thus:
+
+Worst-Case Running Time:
+
+O(2^F ⋅ F ⋅ C)
+
+Explanation:
+
+There are 
+2^𝐹 subsets of facilities.
+
+For each subset, the program checks coverage for all clients.
+
+Coverage check costs O(F⋅C) in the naive implementation.
 
 Notes:
-- Exponential growth in f makes this approach feasible only for small numbers of facilities (e.g., f ≤ 15).
-- The number of customers (c) increases runtime linearly, so hundreds of customers are manageable.
 
-----------------------------------------
-Sample Input File Format:
-----------------------------------------
-The input file should be a plain text file with the following format:
+Runtime grows exponentially in the number of facilities, not clients.
 
-    f c
-    <f lines: opening_cost x y>
-    <c lines: x y>
+For large input (F > ~25), runtime becomes multiple minutes.
 
-Example (`input.txt`):
+This is expected: the decision version of the problem is NP-Complete, via reduction from Set Cover.
+
+
+
+How to Run the Program
+
+Your program is executed using:
+
+python facility_location_exact.py sample_input.txt
+
+
+Where:
+
+facility_location_exact.py is your script
+
+inputfile.txt contains facilities, clients, and coverage radius
+
+A sample input file might look like:
+
 10 5
-10 0 0
-15 10 0
-20 5 5
-12 7 2
-18 3 8
-25 8 8
-14 2 3
-22 6 6
-16 1 9
-19 4 4
-1 1
-2 2
-8 1
-7 7
-5 5
+C1 69.69 90.47
+C2 45.03 61.68
+C3 26.71 57.00
+C4 77.94 68.52
+C5 43.43 61.07
+F1 6.20 33.75 0
+F2 8.26 9.32 0
+F3 44.19 98.25 0
+F4 62.91 66.37 0
+F5 94.27 1.72 0
+33.14
 
-----------------------------------------
-Example Command Line:
-----------------------------------------
-To run the exact solver using the sample input file:
+Example Command Line
+python flp_exact_solver.py test_case_4.txt
 
-Windows PowerShell / Command Prompt:
+Example Output
+=== OPTIMAL SOLUTION FOUND ===
+Coverage distance: 33.14
+Facilities chosen (3):
+  F1 at (6.20, 33.75)
+  F4 at (62.91, 66.37)
+  F3 at (44.19, 98.25)
 
-    python facility_location_exact.py
-
-Output:
-    Best cost: <calculated total cost>
-    Facilities to open: <indices of facilities in optimal subset>
-    Time elapsed: <seconds>
-
-Alternatively, to run a randomized multi-store scenario with hundreds of customers:
-
-    python multi_store_flp.py
-
-Output:
-    Generates random facilities and customers.
-    Prints best total cost, facilities to open, and customer assignments.
-    Optional visualization can be run using `multi_store_flp_viz.py` to plot facility locations and customer clusters.
-
-----------------------------------------
-Dependencies:
-----------------------------------------
-- Python 3.x
-- matplotlib (for visualization)
-    Install via: pip install matplotlib
+Coverage mapping:
+F1 covers: C2
+F3 covers: C1, C4
+F4 covers: C5, C2

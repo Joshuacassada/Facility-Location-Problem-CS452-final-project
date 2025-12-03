@@ -1,4 +1,4 @@
-from exact_solution.facility_location_exact import solve_flp
+from facility_location_exact import solve_exact
 import random
 import time
 
@@ -19,7 +19,7 @@ for i, (cost, coord) in enumerate(facilities):
     print(f"Facility {i}: cost={cost}, location={coord}")
 
 start_time = time.time()
-best_cost, best_set = solve_flp(facilities, customers)
+best_cost, best_set = solve_exact(facilities, customers)
 end_time = time.time()
 
 print("\n=== Solution ===")

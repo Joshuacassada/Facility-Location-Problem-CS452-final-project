@@ -1,17 +1,17 @@
-10 5
-C1 69.69 90.47
-C2 45.03 61.68
-C3 26.71 57.0
-C4 77.94 68.52
-C5 43.43 61.07
-C6 77.1 19.63
-C7 42.33 87.33
-C8 10.87 65.55
-C9 87.34 58.37
-C10 63.44 87.89
-F1 6.2 33.75 0
-F2 8.26 9.32 0
-F3 44.19 98.25 0
-F4 62.91 66.37 0
-F5 94.27 1.72 0
-33.14
+10 5              # 10 clients, 5 facilities
+C1 69.69 90.47    # Client 1 at coordinates (69.69, 90.47)
+C2 45.03 61.68    # Client 2 at coordinates (45.03, 61.68)
+C3 26.71 57.0     # Client 3 at coordinates (26.71, 57.0)
+C4 77.94 68.52    # Client 4 at coordinates (77.94, 68.52)
+C5 43.43 61.07    # Client 5 at coordinates (43.43, 61.07)
+C6 77.1 19.63     # Client 6 at coordinates (77.1, 19.63)
+C7 42.33 87.33    # Client 7 at coordinates (42.33, 87.33)
+C8 10.87 65.55    # Client 8 at coordinates (10.87, 65.55)
+C9 87.34 58.37    # Client 9 at coordinates (87.34, 58.37)
+C10 63.44 87.89   # Client 10 at coordinates (63.44, 87.89)
+F1 6.2 33.75 0    # Facility 1 at (6.2, 33.75), initially closed (0)
+F2 8.26 9.32 0    # Facility 2 at (8.26, 9.32), initially closed (0)
+F3 44.19 98.25 0  # Facility 3 at (44.19, 98.25), initially closed (0)
+F4 62.91 66.37 0  # Facility 4 at (62.91, 66.37), initially closed (0)
+F5 94.27 1.72 0   # Facility 5 at (94.27, 1.72), initially closed (0)
+33.14             # Coverage distance: maximum distance a facility can serve a client

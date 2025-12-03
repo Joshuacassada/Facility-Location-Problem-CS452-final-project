@@ -1,68 +1,87 @@
-from exact_solution.facility_location_exact import solve_flp
 import random
 import time
 import matplotlib.pyplot as plt
+from facility_location_exact import solve_exact, distance
 
-# Parameters
-f = 12      # number of potential facility locations
-c = 200     # number of customers
+# --- Parameters ---
+num_facilities_list = [5, 7, 10, 12, 15]   # number of facilities
+num_clients_list    = [5, 7, 10, 12, 15]   # number of clients
+coverage = 50  # adjust so multiple facilities are needed
 
-# Generate random facilities: (opening_cost, (x, y))
-facilities = [(random.randint(50, 150), (random.uniform(0, 100), random.uniform(0, 100))) for _ in range(f)]
+runtimes = []
 
-# Generate random customers: (x, y)
-customers = [(random.uniform(0, 100), random.uniform(0, 100)) for _ in range(c)]
+for f, c in zip(num_facilities_list, num_clients_list):
+    # Generate random clients
+    clients = [(f"C{i+1}", random.uniform(0, 100), random.uniform(0, 100)) for i in range(c)]
+    
+    # Generate facilities clustered near clients to ensure feasibility
+    facilities = []
+    for i in range(f):
+        cx, cy = random.choice(clients)[1:3]
+        fx = cx + random.uniform(-coverage, coverage)
+        fy = cy + random.uniform(-coverage, coverage)
+        facilities.append((f"F{i+1}", fx, fy))
+    
+    # --- Run exact solver and measure runtime ---
+    start_time = time.time()
+    best = solve_exact(clients, facilities, coverage)
+    end_time = time.time()
+    
+    runtime = end_time - start_time
+    runtimes.append(runtime)
+    
+    print(f"\n=== FLP for {f} facilities and {c} clients ===")
+    if best is None:
+        print("No feasible solution exists (unexpected!)")
+        continue
+    print(f"Facilities chosen ({len(best)}): {[fac[0] for fac in best]}")
+    print(f"Time elapsed: {runtime:.2f} seconds")
+    
+    # --- Visualization ---
+    plt.figure(figsize=(8,8))
+    
+    # Plot all facilities
+    for fac in facilities:
+        if fac in best:
+            plt.scatter(fac[1], fac[2], c='red', s=150, marker='s', label='Open Facility' if fac==best[0] else "")
+        else:
+            plt.scatter(fac[1], fac[2], c='gray', s=80, marker='x', label='Closed Facility' if fac==facilities[0] else "")
+    
+    # Assign clients to nearest open facility that actually covers them
+    assignments = {fac: [] for fac in best}
+    for cname, cx, cy in clients:
+        closest_fac = None
+        for fac in best:
+            if distance((cx, cy), (fac[1], fac[2])) <= coverage:
+                closest_fac = fac
+                break
+        if closest_fac:
+            assignments[closest_fac].append((cx, cy))
+        else:
+            print(f"Client {cname} not covered!")
+    
+    # Plot clients and edges
+    colors = plt.cm.get_cmap("tab10", len(best))
+    for idx, fac in enumerate(best):
+        xs = [x for x, y in assignments[fac]]
+        ys = [y for x, y in assignments[fac]]
+        plt.scatter(xs, ys, s=30, c=[colors(idx)]*len(xs), label=f"Clients of {fac[0]}" if idx==0 else "")
+        # Draw edges
+        for x, y in assignments[fac]:
+            plt.plot([fac[1], x], [fac[2], y], c=colors(idx), linewidth=0.8, alpha=0.6)
+    
+    plt.xlabel("X Coordinate")
+    plt.ylabel("Y Coordinate")
+    plt.title(f"FLP Solution: {f} Facilities, {c} Clients")
+    plt.legend(fontsize=8)
+    plt.grid(True)
+    plt.show()
 
-# Solve FLP
-start_time = time.time()
-best_cost, best_set = solve_flp(facilities, customers)
-end_time = time.time()
-
-print(f"Generated {f} facilities and {c} customers.")
-print("\n=== Solution ===")
-print("Best total cost:", best_cost)
-print("Facilities to open:", best_set)
-print("Time elapsed:", end_time - start_time, "seconds")
-
-# Assign customers to nearest open facility
-assignments = {}
-for cust in customers:
-    closest_fac = min(best_set, key=lambda i: ((facilities[i][1][0] - cust[0])**2 + (facilities[i][1][1] - cust[1])**2))
-    if closest_fac not in assignments:
-        assignments[closest_fac] = []
-    assignments[closest_fac].append(cust)
-
-for fac in best_set:
-    print(f"Facility {fac} serves {len(assignments[fac])} customers")
-
-# --- Visualization ---
-colors = plt.cm.get_cmap("tab10", len(best_set))
-
-plt.figure(figsize=(10, 10))
-
-# Plot all facilities
-for i, (cost, coord) in enumerate(facilities):
-    if i in best_set:
-        plt.scatter(coord[0], coord[1], s=200, c='red', marker='s', label=f"Open Facility {i}" if i==best_set[0] else "")
-    else:
-        plt.scatter(coord[0], coord[1], s=80, c='gray', marker='x', label="Closed Facility" if i==0 else "")
-
-# Plot customers
-for idx, fac in enumerate(best_set):
-    cust_coords = assignments[fac]
-    xs = [x for x, y in cust_coords]
-    ys = [y for x, y in cust_coords]
-    plt.scatter(xs, ys, s=30, c=[colors(idx)]*len(xs), label=f"Customers of Facility {fac}" if idx==0 else "")
-
-# Optional: draw lines from customers to their facility
-for fac in best_set:
-    fx, fy = facilities[fac][1]
-    for x, y in assignments[fac]:
-        plt.plot([fx, x], [fy, y], c='lightgray', linewidth=0.5)
-
-plt.xlabel("X Coordinate")
-plt.ylabel("Y Coordinate")
-plt.title("Facility Location and Customer Assignments")
-plt.legend(loc="upper right", fontsize=8)
+# --- Plot runtime vs problem size ---
+plt.figure(figsize=(8,5))
+plt.plot([f+c for f,c in zip(num_facilities_list,num_clients_list)], runtimes, marker='o')
+plt.xlabel("Number of facilities + clients")
+plt.ylabel("Runtime (seconds)")
+plt.title("Exact FLP Solver Runtime vs Problem Size")
 plt.grid(True)
 plt.show()
