@@ -1,4 +1,4 @@
-from facility_location_exact import solve_flp
+from exact_solution.facility_location_exact import solve_flp
 import random
 import time
 import matplotlib.pyplot as plt

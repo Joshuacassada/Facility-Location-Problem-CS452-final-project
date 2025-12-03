@@ -1,7 +1,7 @@
 import time
 import csv
 import os
-from facility_location_exact import read_input, solve_flp
+from exact_solution.facility_location_exact import read_input, solve_flp
 
 INPUT_DIR = "flp_test_inputs"   
 OUTPUT_CSV = "results.csv"

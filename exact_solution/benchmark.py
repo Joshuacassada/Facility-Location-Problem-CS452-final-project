@@ -1,7 +1,7 @@
 import random
 import time
 import matplotlib.pyplot as plt
-from facility_location_exact import solve_flp
+from exact_solution.facility_location_exact import solve_flp
 
 def generate_test_case(f, c):
     facilities = [(random.randint(10,100), (random.uniform(0,100), random.uniform(0,100))) for _ in range(f)]
