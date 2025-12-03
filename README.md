@@ -1,98 +1,68 @@
-Facility Location (2D)
+Input
 
-The input describes a facility-location instance in a 2-dimensional plane.
+The program requires three main types of input: clients, facilities, and a coverage distance.
 
-The first line contains:
+1. Clients (people needing service)
 
-f — number of facilities
+Each client has:
 
-c — number of customers
+A name
 
-The remainder of the input has four parts:
+Coordinates (x, y)
 
-A line of f facility opening costs
+Example:
 
-f lines of facility coordinates (x y)
+Clients:
+- Alice: (2, 3)
+- Bob: (5, 4)
+- Charlie: (1, 7)
+- Diana: (6, 8)
 
-A line of c customer demands
+2. Facilities (possible locations we may choose to open)
 
-c lines of customer coordinates (x y)
+Each facility has:
 
-Distances between facilities and customers are computed using Euclidean distance.
+A name
 
-🔢 Input Format
-f c
-<facility opening costs>
-<facility_1_x> <facility_1_y>
-...
-<facility_f_x> <facility_f_y>
-<customer demands>
-<customer_1_x> <customer_1_y>
-...
-<customer_c_x> <customer_c_y>
+Coordinates (x, y)
 
-📤 Output Format
+An initial “open or not” flag (usually False at the start)
 
-Your output must contain:
+Example:
 
-Total cost of the solution
+Facilities:
+- Facility1: (2, 4), open = False
+- Facility2: (5, 5), open = False
+- Facility3: (1, 6), open = False
 
-List of opened facilities and the customers assigned to them
+3. Coverage Distance
 
-facility_index: customer_1 customer_2 ...
+Maximum distance allowed between a facility and a client for that facility to serve the client.
+
+Example:
+
+Coverage distance: 2.5
 
 
-Only facilities that are opened should appear.
 
-🧪 Example Input
-3 5
-12 10 15
-2 3
-8 1
-5 7
-3 5 4 6 2
-1 1
-3 4
-6 2
-4 6
-9 3
+Output
 
-🧪 Example Output
-34.82
-0: 1 3
-2: 0 2 4
+The solver returns the optimal set of facilities and relevant information.
 
-📐 Facility Location (Distance Matrix Form)
+1. Chosen Facilities
 
-Instead of coordinates, the input may provide direct shipping costs from every customer to every facility.
+Which facilities the algorithm decides to open.
 
-The first line contains:
+Example:
 
-f — number of facilities
+Open facilities: Facility1, Facility2
 
-c — number of customers
+2. Coverage Mapping
 
-This is followed by c lines, each containing f floating-point distances.
+Shows which clients are assigned to which facility.
 
-🔢 Input Format
-f c
-<distances for customer 0 to all facilities>
-<distances for customer 1 to all facilities>
-...
-<distances for customer c-1 to all facilities>
+Example:
 
-🧪 Example Input
-
-(matches your uploaded distance matrix)
-
-3 5
-2.24 7.00 7.21
-1.41 5.83 3.61
-4.12 2.24 5.10
-3.61 6.40 1.41
-7.00 2.24 5.66
-
-🧪 Example Output
-33.28
-0: 0 1
-2: 2 3 4
+Coverage:
+- Facility1 covers: Alice, Charlie
+- Facility2 covers: Bob, Diana
