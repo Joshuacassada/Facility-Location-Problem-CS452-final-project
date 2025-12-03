@@ -1,151 +1,88 @@
-Approximation Solution (Dustin Smith)
+Facility Location – Approximation Solution (Dustin Smith)
 
-Facility Location Problem – Anytime Greedy Approximation Solver
+CS452 Final Project
 
-This folder contains my approximation-based solution for the Facility Location Problem (FLP), developed for the Approximation Solution Architect component of the CS452 Final Project. The goal of this module is to produce a high-quality, polynomial-time approximation algorithm that can run under a specified time budget, support randomized greedy behavior, and generate results that are comparable to the exact and reduction solutions implemented by other members of the group.
+This directory contains the approximation-based solution for the Facility Location Problem developed for the CS452 final project. The goal of this component is to compute high-quality, near-optimal solutions in polynomial time for instances where the exact solver becomes too slow to finish. The approximation method implemented here combines a randomized greedy construction with an anytime stochastic refinement loop. Because of this structure, the solver always returns a complete feasible solution before the time limit and continues improving that solution as long as time is available.
 
-1. Overview of the Approach
+In this project, the Facility Location Problem requires determining which facilities to open and how to assign each client to an open facility so that the overall assignment cost is minimized. Costs are based on Euclidean distance between clients and facilities. Since the exact solver grows exponentially with the number of facilities, approximation is essential for achieving good performance on medium and large instances. This implementation is designed specifically to be efficient under time constraints while remaining compatible with the exact solver’s input and output formats.
 
-My approximation algorithm is based on a randomized greedy construction combined with an anytime improvement loop. Each greedy run incrementally selects facilities that cover the largest number of uncovered clients within the coverage distance, breaking ties randomly as required by the project specification. The solver always produces a feasible solution, even when some clients are beyond the given coverage distance, by assigning those clients to their nearest facility.
+Approximation Method Summary
 
-An anytime wrapper repeatedly invokes this greedy procedure until the time limit provided with the -t argument expires. Across iterations, randomness produces variations in solutions, and the solver keeps whichever solution is best according to two criteria: (1) minimizing the number of facilities opened, and (2) minimizing total client-to-facility assignment distance when the first measure is tied. This ensures the solution quality improves with more available runtime, demonstrating the anytime property described in the requirements.
+The solver begins with a randomized greedy construction. Facilities are randomly shuffled, and each candidate facility is evaluated to determine whether adding it decreases total cost. A facility is included only if it improves the solution. After this forward pass, a pruning step removes any facilities that do not significantly contribute to reducing the assignment cost. This produces a valid and reasonably effective starting solution.
 
-2. Input Format
+After this initialization, the solver enters an anytime improvement loop. In this loop, small random modifications are applied to the current best solution, such as adding or removing facilities. Each modified solution is evaluated independently, and improvements replace the current best result. This loop continues only until the user-specified time limit is reached. Because the modifications are random, different runs may produce different solutions, and because the loop continues as long as time remains, the method satisfies the stochastic and anytime requirements of the project.
 
-The solver uses the simplified input format adopted across the project so that exact, reduction, and approximation solutions can be directly compared. The input consists of:
+Runtime Analysis
 
-A first line specifying the number of clients and facilities.
+Let n denote the number of clients and m the number of candidate facilities.
 
-The list of clients, each given as:
+The dominant operation in the approximation method is the computation of total cost for a candidate solution. This involves assigning each client to its nearest open facility, which takes:
 
-client_name x y
+𝑂(𝑛 ⋅ 𝑚)
 
+in the worst case when many facilities are open.
 
-The list of facilities, each given as:
+The greedy initialization phase evaluates O(m) potential facility additions, and each evaluation computes a full assignment cost, giving:
 
-facility_name x y initially_open_flag
+𝑂(𝑚 ⋅ 𝑛 ⋅ 𝑚) = 𝑂 (𝑛𝑚^2)
 
+The anytime improvement loop evaluates one candidate per iteration, each requiring an     O(nm) cost computation. Since this loop continues only until the time limit is reached, the overall runtime is determined by the user-supplied deadline rather than by the problem size. Each iteration is polynomial in n and m, satisfying the project requirement that the approximation method must run in polynomial time.
 
-A final line containing the coverage distance.
+Test Cases Included
 
-An example of a valid input file is shown below:
+This directory contains exactly 50 test cases that span small, medium and large instance sizes. The cases include a variety of spatial distributions and ratios of clients to facilities. A single extremely large test case is additionally included to demonstrate that the exact solver cannot finish within a practical time window, while the approximation solver continues to run efficiently.
 
-4 3
-C1 2 3
-C2 5 4
-C3 1 7
-C4 6 8
-F1 2 4 0
-F2 5 5 0
-F3 1 6 0
-2.5
+Plots and Analysis
 
+Graphs are generated using make_plots.py. These include:
 
-This format is the same one used by the team’s exact solver and reduction solver, ensuring compatibility across all solutions.
+• Anytime Improvement Plot, showing how the approximation improves as more time is allowed.
+• Approximation-only distance plot, showing the total assignment distance across all 50 test cases.
+• Facilities open plot, showing how many facilities the approximation algorithm selects per test case.
 
-3. Output Format
+When exact solver outputs become available, the same script will also produce:
 
-The solver outputs the set of facilities it opens, followed by a coverage mapping showing which clients were assigned to each opened facility. The structure is straightforward and human-readable:
+• Approximation versus Exact total cost comparison.
+• Approximation versus Exact facility count comparison.
 
-Open facilities:
-F1 F2 F3
+These plots are essential for the final project presentation and for demonstrating approximation quality.
 
-Coverage:
-F1 covers: C1
-F2 covers: C2 C4
-F3 covers: C3
+Input Format
 
+The solver accepts files formatted according to the exact solver’s specification:
 
-The exact formatting mirrors the example format distributed in Canvas and used by the exact solution architect.
+<grid_width> <grid_height>
+<number_of_facilities>
+<number_of_clients>
+<facility_x> <facility_y>     (m lines)
+<client_x> <client_y>         (n lines)
 
-4. Algorithm Details and Runtime Analysis
 
-The algorithm proceeds in two stages: a single greedy construction and an anytime loop that repeats this construction as long as time remains.
+This ensures that the approximation system is fully compatible with the exact solver’s input format.
 
-Greedy Construction
+Output Format
 
-During one greedy construction:
+The solver outputs:
 
-For each unopened facility, the solver computes how many currently uncovered clients it can serve within the coverage distance.
+<total_cost>
+<f_id> <client_id_1> <client_id_2> ...
+<f_id> <client_id_1> <client_id_2> ...
 
-It selects the facility that covers the largest number of these clients.
 
-When multiple facilities achieve the same coverage gain, the solver uses random tie-breaking, ensuring variability between runs.
+Each line after the cost lists one open facility and the client identifiers assigned to that facility. This output format is consistent with the exact solver and supports direct comparison.
 
-Once no unopened facility can cover additional clients within range, the remaining uncovered clients—if any—are assigned to their nearest facility (opening it if needed).
+Folder Contents
 
-Runtime Complexity
+This directory contains:
 
-Let:
+• facility_location_approx.py, the complete approximation solver.
+• make_plots.py, the script used to generate all required graphs.
+• dustin_run_test_cases.sh, an automated script that runs the solver across all test cases.
+• testcases, a folder containing all 50 test cases and the extremely large instance.
+• test_outputs, the directory where solver outputs are collected.
+• README.txt, this document.
+• presentation.pdf, which will be added prior to final submission.
 
-C = number of clients
+Summary
 
-F = number of facilities
-
-The algorithm precomputes all pairwise client–facility distances in:
-
-O(C × F)
-
-During the greedy phase, each iteration evaluates all unopened facilities, and each evaluation scans through all clients. In the worst case, up to F facilities may be opened. Therefore, a single greedy construction takes:
-
-O(F² × C)
-
-Since the solver invokes this greedy procedure repeatedly inside an anytime loop, the number of constructions depends on the time limit, but each iteration remains polynomial in the size of the input as required by the project.
-
-5. Anytime Behavior
-
-The solver accepts a mandatory command-line argument -t <seconds>, specifying how long the algorithm is allowed to run. Within this window, the solver repeats randomized greedy constructions, stores the best solution encountered, and returns that result when the time expires. This behavior satisfies the project’s requirement for an anytime procedure that improves solution quality the longer it is allowed to run.
-
-6. Example Usage
-
-The following command runs the solver for two seconds on the example input file:
-
-python3 facility_location_approx.py -t 2.0 example_input.txt --seed 42
-
-
-Here:
-
--t 2.0 provides a 2-second time limit
-
-example_input.txt is the input file included in this folder
-
---seed 42 is optional and ensures reproducible randomized behavior
-
-7. Test Cases and Folder Structure
-
-This project uses a centralized /testcases directory shared across all solvers produced by the group. The directory contains:
-
-25 small cases originating from the optimal solution architect
-
-25 additional small and medium cases
-
-25 larger cases designed to stress the exact solver
-
-One extreme case that pushes the exact solver to multi-minute runtimes
-
-My outputs generated from these tests are stored in:
-
-dustin_approx_sol/test_outputs/
-
-
-Each teammate maintains their own test outputs in their own solver folder while sharing the same test cases.
-
-A shell script derived from the shared template is used to run all test cases automatically and direct output to the correct location.
-
-8. Included Files
-
-This folder contains:
-
-facility_location_approx.py — my approximation solver
-
-README.txt — this documentation file
-
-example_input.txt — sample input file
-
-test_outputs/ — results from running shared test cases
-
-A teammate-customizable shell script for running all shared test cases
-
-9. Summary
-
-This approximation solution satisfies all requirements laid out in the project description, including polynomial runtime, randomized greedy behavior, anytime termination, compatibility with the shared input format, and the ability to run consistently across a suite of shared test cases. It produces high-quality approximations within the prescribed time window and supports direct comparison against the exact and reduction approaches developed by the other members of the team.
+This approximation framework uses a randomized greedy construction phase and incorporates randomness throughout the refinement stage. It satisfies the anytime requirement by improving solutions until the time limit is reached. Each iteration runs in polynomial time. The solver is consistent with the exact solver’s input and output requirements, includes all required test cases and automation scripts, and provides the visual analysis necessary for evaluating solution quality. These components collectively meet the expectations for the Approximation Solution Architect role in the project specification.

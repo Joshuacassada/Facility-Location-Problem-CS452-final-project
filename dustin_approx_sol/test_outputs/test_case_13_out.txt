@@ -1,7 +1,7 @@
 Open facilities:
-F3 F6 F7
+F4 F6 F7
 
 Coverage:
-F3 covers: C2 C4 C5 C6 C8 C9
-F6 covers: C1 C7
-F7 covers: C3
+F4 covers: C9 C2
+F6 covers: C1 C4 C6 C7
+F7 covers: C3 C5 C8

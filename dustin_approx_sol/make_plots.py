@@ -1,134 +1,253 @@
-import matplotlib.pyplot as plt
-import re
 import os
+import math
+import subprocess
+import matplotlib.pyplot as plt
 
-# ---------------------------------------------------------
-# HELPERS
-# ---------------------------------------------------------
-
-def read_cost_from_output(filename):
-    """
-    Reads the FIRST line of an approximation output (the cost).
-    Assumes file format:
-       <cost>
-       facility: customers...
-    """
-    try:
-        with open(filename, "r") as f:
-            first = f.readline().strip()
-            return float(first)
-    except:
-        return None
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TESTCASE_DIR = os.path.join(BASE_DIR, "..", "testcases")
+APPROX_OUT_DIR = os.path.join(BASE_DIR, "test_outputs")
+EXACT_OUT_DIR = os.path.join(BASE_DIR, "..", "exact_solution", "outputs")   # auto-detect
 
 
-def read_optimal_cost(filename):
-    """
-    Reads the FIRST line from the *optimal solver output*.
-    You must export these from your teammate.
-    """
-    with open(filename, "r") as f:
-        return float(f.readline().strip())
+# -------------------------------------------------------------
+# Input Parsing
+# -------------------------------------------------------------
+def parse_input(path):
+    with open(path) as f:
+        data = f.read().strip().split()
+
+    it = iter(data)
+    nC = int(next(it))
+    nF = int(next(it))
+
+    clients = {}
+    for _ in range(nC):
+        name = next(it)
+        x = float(next(it))
+        y = float(next(it))
+        clients[name] = (x, y)
+
+    facs = {}
+    for _ in range(nF):
+        name = next(it)
+        x = float(next(it))
+        y = float(next(it))
+        _flag = next(it)
+        facs[name] = (x, y)
+
+    cov = float(next(it))
+    return clients, facs, cov
 
 
-# ---------------------------------------------------------
-# 1. Approx vs Optimal Plot
-# ---------------------------------------------------------
+# -------------------------------------------------------------
+# Output Parsing
+# -------------------------------------------------------------
+def parse_output(path):
+    if not os.path.exists(path):
+        return None, None
 
-def plot_approx_vs_optimal():
-    approx_costs = []
-    optimal_costs = []
-    case_numbers = []
+    with open(path) as f:
+        lines = f.read().splitlines()
 
-    # Assumes:
-    #   test_small_XX.txt       (input)
-    #   test_small_XX.opt       (optimal solver output)
-    #   test_small_XX.out       (our approx output)
-    #
-    # You ONLY need to provide the .opt files yourself.
+    mode = None
+    open_facs = []
+    coverage = {}
 
-    for i in range(1, 26):    # 1–25
-        idx = f"{i:02d}"
-        approx_file = f"test_cases/test_small_{idx}.out"
-        optimal_file = f"test_cases/test_small_{idx}.opt"
-
-        if not os.path.exists(approx_file):
-            print(f"Missing: {approx_file}")
+    for line in lines:
+        s = line.strip()
+        if not s:
             continue
-        if not os.path.exists(optimal_file):
-            print(f"Missing optimal file: {optimal_file}")
+        if s.startswith("Open"):
+            mode = "open"
             continue
+        if s.startswith("Coverage"):
+            mode = "cov"
+            continue
+        if mode == "open":
+            open_facs = s.split()
+        if mode == "cov" and "covers:" in s:
+            fac, rest = s.split("covers:")
+            fac = fac.strip()
+            coverage[fac] = rest.strip().split()
 
-        approx_c = read_cost_from_output(approx_file)
-        opt_c = read_optimal_cost(optimal_file)
-
-        approx_costs.append(approx_c)
-        optimal_costs.append(opt_c)
-        case_numbers.append(i)
-
-    # Plot
-    plt.figure(figsize=(10, 6))
-    plt.plot(case_numbers, optimal_costs, 'o-', label="Optimal")
-    plt.plot(case_numbers, approx_costs, 's-', label="Approximation")
-
-    plt.xlabel("Test Case (1–25)")
-    plt.ylabel("Total Cost")
-    plt.title("Approximation vs Optimal (Small Cases)")
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig("plot_approx_vs_optimal.png")
-    plt.show()
+    return open_facs, coverage
 
 
-# ---------------------------------------------------------
-# 2. Anytime Behavior Plot
-# ---------------------------------------------------------
+# -------------------------------------------------------------
+# Distance Computation
+# -------------------------------------------------------------
+def compute_total_distance(clients, facs, coverage):
+    total = 0.0
+    for fac, client_list in coverage.items():
+        fx, fy = facs[fac]
+        for c in client_list:
+            cx, cy = clients[c]
+            total += math.dist((fx, fy), (cx, cy))
+    return total
 
-def run_and_collect_anytime(case_file, times):
-    """
-    Runs:
-       python facility_location_approx.py -t T case_file
-    for T in [list of times], extracts costs.
-    """
+
+# -------------------------------------------------------------
+# Anytime Improvement
+# -------------------------------------------------------------
+def run_anytime(case_file, time_values):
+    """Runs the approx solver repeatedly for increasing times."""
+
     costs = []
-    for t in times:
-        cmd = f"python facility_location_approx.py -t {t} {case_file}"
-        print(f"Running: {cmd}")
-        stream = os.popen(cmd).read()
-        try:
-            cost = float(stream.splitlines()[0].strip())
-        except:
-            cost = None
-        costs.append(cost)
+    for t in time_values:
+        cmd = [
+            "python3",
+            os.path.join(BASE_DIR, "facility_location_approx.py"),
+            "-t", str(t),
+            case_file
+        ]
+
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = proc.communicate()
+
+        # parse temporary output directly from stdout
+        out = out.decode()
+        lines = out.splitlines()
+
+        # find coverage block
+        open_facs = []
+        coverage = {}
+        mode = None
+
+        for line in lines:
+            s = line.strip()
+            if not s:
+                continue
+            if s.startswith("Open"):
+                mode = "open"
+                continue
+            if s.startswith("Coverage"):
+                mode = "cov"
+                continue
+            if mode == "open":
+                open_facs = s.split()
+            if mode == "cov" and "covers:" in s:
+                fac, rest = s.split("covers:")
+                fac = fac.strip()
+                coverage[fac] = rest.strip().split()
+
+        # compute cost
+        clients, facs, cov = parse_input(case_file)
+        c = compute_total_distance(clients, facs, coverage)
+        costs.append(c)
+
     return costs
 
 
-def plot_anytime_behavior():
-    case_file = "test_cases/test_large_03.txt"   # pick any medium case
-    times = [0.1, 0.2, 0.5, 1, 2, 5]             # seconds
+# -------------------------------------------------------------
+# MAIN: Generate All Plots
+# -------------------------------------------------------------
+def generate_all_plots():
 
-    costs = run_and_collect_anytime(case_file, times)
+    # ------------------------
+    # 1. Approx-Only Stats
+    # ------------------------
 
+    case_ids = []
+    approx_facilities = []
+    approx_costs = []
+
+    exact_facilities = []
+    exact_costs = []
+
+    for fname in sorted(os.listdir(TESTCASE_DIR)):
+        if not fname.startswith("test_case_") or not fname.endswith(".txt"):
+            continue
+
+        case_id = int(fname.split("_")[2].split(".")[0])
+        input_path = os.path.join(TESTCASE_DIR, fname)
+        approx_out = os.path.join(APPROX_OUT_DIR, fname.replace(".txt", "_out.txt"))
+        exact_out = os.path.join(EXACT_OUT_DIR, fname.replace(".txt", "_out.txt"))
+
+        clients, facs, cov = parse_input(input_path)
+        approx_open, approx_cov = parse_output(approx_out)
+
+        if approx_open is None:
+            continue
+
+        a_cost = compute_total_distance(clients, facs, approx_cov)
+        a_fac = len(approx_open)
+
+        case_ids.append(case_id)
+        approx_facilities.append(a_fac)
+        approx_costs.append(a_cost)
+
+        # exact only if available
+        if os.path.exists(exact_out):
+            ex_open, ex_cov = parse_output(exact_out)
+            e_cost = compute_total_distance(clients, facs, ex_cov)
+            e_fac = len(ex_open)
+        else:
+            e_cost = None
+            e_fac = None
+
+        exact_facilities.append(e_fac)
+        exact_costs.append(e_cost)
+
+    # sort by case id
+    zipped = sorted(zip(case_ids, approx_facilities, approx_costs, exact_facilities, exact_costs))
+    case_ids, approx_facilities, approx_costs, exact_facilities, exact_costs = zip(*zipped)
+
+    # ------------------------------------------
+    # PLOT: Approx vs Exact — Facilities Opened
+    # ------------------------------------------
     plt.figure(figsize=(10,6))
-    plt.plot(times, costs, marker='o')
-    plt.xlabel("Time Limit (seconds)")
-    plt.ylabel("Best Cost Found")
-    plt.title("Anytime Behavior: Cost vs Time Limit")
+    plt.plot(case_ids, approx_facilities, '-o', label="Approx")
+
+    # exact values only if exist
+    if any(e is not None for e in exact_facilities):
+        plt.plot(case_ids, [e if e is not None else None for e in exact_facilities],
+                 '-s', label="Exact")
+
+    plt.title("Facilities Opened: Approx vs Exact")
+    plt.xlabel("Test Case")
+    plt.ylabel("# Facilities")
     plt.grid(True)
-    plt.tight_layout()
-    plt.savefig("plot_anytime_behavior.png")
+    plt.legend()
+    plt.savefig(os.path.join(BASE_DIR, "plot_facilities_comparison.png"))
     plt.show()
 
+    # ------------------------------------------
+    # PLOT: Approx vs Exact — Total Distance
+    # ------------------------------------------
+    plt.figure(figsize=(10,6))
+    plt.plot(case_ids, approx_costs, '-o', color="orange", label="Approx")
 
-# ---------------------------------------------------------
-# MAIN
-# ---------------------------------------------------------
+    if any(e is not None for e in exact_costs):
+        plt.plot(case_ids, [e if e is not None else None for e in exact_costs],
+                 '-s', color="green", label="Exact")
+
+    plt.title("Total Assignment Distance: Approx vs Exact")
+    plt.xlabel("Test Case")
+    plt.ylabel("Total Distance")
+    plt.grid(True)
+    plt.legend()
+    plt.savefig(os.path.join(BASE_DIR, "plot_total_distance_comparison.png"))
+    plt.show()
+
+    # ------------------------------------------
+    # ANYTIME IMPROVEMENT PLOT (choose a test)
+    # ------------------------------------------
+    test_for_anytime = os.path.join(TESTCASE_DIR, "test_case_50.txt")
+    times = [0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 5.0 ]
+
+    anytime_costs = run_anytime(test_for_anytime, times)
+
+    plt.figure(figsize=(10,6))
+    plt.plot(times, anytime_costs, '-o')
+    plt.title("Anytime Improvement (Approximation Improves Over Time)")
+    plt.xlabel("Allowed Time (seconds)")
+    plt.ylabel("Best Cost Found")
+    plt.grid(True)
+    plt.savefig(os.path.join(BASE_DIR, "plot_anytime.png"))
+    plt.show()
+
+    print("All plots generated successfully!")
+
 
 if __name__ == "__main__":
-    print("Generating Plot 1: Approximation vs Optimal...")
-    plot_approx_vs_optimal()
-    print("Saved: plot_approx_vs_optimal.png")
-
-    print("\nGenerating Plot 2: Anytime Behavior...")
-    plot_anytime_behavior()
-    print("Saved: plot_anytime_behavior.png")
+    generate_all_plots()

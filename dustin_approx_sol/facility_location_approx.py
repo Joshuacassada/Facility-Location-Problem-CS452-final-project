@@ -1,80 +1,39 @@
 #!/usr/bin/env python3
 """
-Anytime greedy approximation for a simple Facility Location / Coverage problem.
+Anytime stochastic greedy approximation for the distance-based facility
+location / coverage problem.
 
-Input format (from Canvas / README, numeric version):
+Input format (matches the current test cases):
 
-Line 1:
     n_clients n_facilities
-
-Next n_clients lines:
-    client_name x y
-
-Next n_facilities lines:
-    facility_name x y open_flag
-    (open_flag is 0 or 1; typically 0, you may treat 1 as initially open)
-
-Final line:
-    coverage_distance   (float)
+    <n_clients lines>:
+        client_name  x  y
+    <n_facilities lines>:
+        facility_name  x  y  open_flag
+    coverage_distance
 
 Example:
 
-4 3
-C1 2 3
-C2 5 4
-C3 1 7
-C4 6 8
-F1 2 4 0
-F2 5 5 0
-F3 1 6 0
-2.5
+    6 8
+    C1 61.59 0.60
+    C2 15.74 80.04
+    ...
+    F1 43.76 88.30 0
+    ...
+    30.21
 
-Output format:
+Semantics:
+- Every client must be assigned to some open facility.
+- A client is covered by facility j if dist(client, j) <= coverage_distance.
+- The greedy algorithm tries to open as few facilities as possible while covering
+  all clients; remaining uncovered clients are attached to their nearest facility.
+- Cost = total Euclidean distance from each client to its assigned facility.
 
-Open facilities:
-F1 F3
-
-Coverage:
-F1 covers: C1 C2
-F3 covers: C3 C4
-
-Approximation approach (high level):
-
-- Precompute distances between every client and facility.
-- A client can be *covered* by a facility if distance <= coverage_distance.
-- Greedy algorithm to approximate a minimum number of facilities that cover all clients:
-    * While there are still uncovered clients and some facility can cover new ones:
-        - For each unopened facility, count how many *currently uncovered* clients
-          it would newly cover.
-        - Select the facility that covers the most new clients.
-        - Break ties randomly (satisfies the "greedy tie-breaking is random" spec).
-        - Open it and assign those clients to this facility.
-    * If any clients remain uncovered (no facility within coverage distance),
-      assign them to their nearest facility (even if distance > coverage_distance),
-      opening that facility if necessary.
-
-Anytime requirement:
-
-- The program accepts a command-line argument -t (time limit in seconds).
-- It repeatedly runs this randomized greedy construction until the time limit expires.
-- It keeps the *best* solution seen so far, where "best" is:
-    1) fewer open facilities,
-    2) if tied, smaller total distance from clients to their assigned facilities.
-
-Runtime per construction:
-
-- Let:
-    C = number of clients
-    F = number of facilities
-- Precompute distances: O(C * F).
-- Each greedy step:
-    - For each unopened facility, scan all clients ⇒ O(F * C)
-    - At most F steps ⇒ O(F^2 * C) per construction.
-- Anytime wrapper simply repeats this construction as many times as time allows,
-  so total runtime is polynomial in C and F for any fixed time limit.
-
-This file is intentionally simpler than a full optimal solver and is meant
-to be used as an approximation solution architect with an anytime greedy algorithm.
+Anytime behaviour:
+- For a given time limit -t, we repeatedly build solutions with a *randomized*
+  greedy heuristic.
+- We keep the best solution seen so far (primary: fewest open facilities,
+  secondary: smallest total distance).
 """
 
 import argparse
@@ -83,12 +42,12 @@ import random
 import sys
 import time
 from dataclasses import dataclass
-from typing import List, Tuple, Dict, Set
+from typing import Dict, List, Set, Tuple
 
 
-# ----------------------------------------------------------
-# Data Structures
-# ----------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Data structures
+# ---------------------------------------------------------------------------
 
 @dataclass
 class Client:
@@ -112,293 +71,278 @@ class Instance:
     coverage_distance: float
 
 
-# ----------------------------------------------------------
-# Input / Output
-# ----------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Parsing and printing
+# ---------------------------------------------------------------------------
+
+def _next_data_line(stream) -> str:
+    """Return the next non-empty, non-comment line, stripped."""
+    while True:
+        line = stream.readline()
+        if not line:
+            return ""
+        s = line.strip()
+        if not s or s.startswith("#"):
+            continue
+        return s
+
 
 def read_instance(stream) -> Instance:
     """
-    Parse the instance from the given text stream according to the
-    simple numeric format described in the module docstring.
-    """
-    # Read first non-empty, non-comment line as "n_clients n_facilities"
-    def next_data_line() -> str:
-        while True:
-            line = stream.readline()
-            if not line:
-                return ""  # EOF
-            line = line.strip()
-            if line == "" or line.startswith("#"):
-                continue
-            return line
+    Read an instance in the simple coverage format:
 
-    header = next_data_line()
+        n_clients n_facilities
+        <clients>
+        <facilities>
+        coverage_distance
+    """
+    header = _next_data_line(stream)
     if not header:
-        raise ValueError("Empty input: expected 'n_clients n_facilities' line.")
-    n_clients, n_facilities = map(int, header.split())
+        raise ValueError("Empty input: expected 'n_clients n_facilities'.")
+
+    parts = header.split()
+    if len(parts) != 2:
+        raise ValueError("Header must be: n_clients n_facilities")
+    n_clients = int(parts[0])
+    n_facilities = int(parts[1])
 
     clients: List[Client] = []
     for _ in range(n_clients):
-        line = next_data_line()
-        if not line:
-            raise ValueError("Unexpected EOF while reading clients.")
+        line = _next_data_line(stream)
         parts = line.split()
         if len(parts) != 3:
-            raise ValueError(f"Client line must have 3 fields: {line}")
-        name, xs, ys = parts
-        clients.append(Client(name=name, x=float(xs), y=float(ys)))
+            raise ValueError("Client line must be: name x y")
+        nm, xs, ys = parts
+        clients.append(Client(nm, float(xs), float(ys)))
 
     facilities: List[Facility] = []
     for _ in range(n_facilities):
-        line = next_data_line()
-        if not line:
-            raise ValueError("Unexpected EOF while reading facilities.")
+        line = _next_data_line(stream)
         parts = line.split()
         if len(parts) != 4:
-            raise ValueError(f"Facility line must have 4 fields: {line}")
-        name, xs, ys, fs = parts
-        initially_open = (int(fs) != 0)
-        facilities.append(Facility(name=name, x=float(xs), y=float(ys),
-                                   initially_open=initially_open))
+            raise ValueError("Facility line must be: name x y open_flag")
+        nm, xs, ys, flag = parts
+        facilities.append(Facility(nm, float(xs), float(ys), bool(int(flag))))
 
-    # Final line: coverage distance
-    line = next_data_line()
-    if not line:
-        raise ValueError("Expected coverage distance.")
-    coverage_distance = float(line)
+    cov_line = _next_data_line(stream)
+    if not cov_line:
+        raise ValueError("Missing coverage distance line.")
+    coverage = float(cov_line)
 
-    return Instance(clients=clients,
-                    facilities=facilities,
-                    coverage_distance=coverage_distance)
+    return Instance(clients=clients, facilities=facilities,
+                    coverage_distance=coverage)
 
 
 def write_solution(
-    instance: Instance,
+    inst: Instance,
     open_facilities: Set[int],
     assignment: Dict[int, int],
-    out=sys.stdout
+    out=sys.stdout,
 ) -> None:
     """
-    Print solution in the required human-readable format:
+    Print solution in the agreed format:
 
-    Open facilities:
-    F1 F3
+        Open facilities:
+        F1 F3 F7
 
-    Coverage:
-    F1 covers: C1 C2
-    F3 covers: C3 C4
+        Coverage:
+        F1 covers: C1 C4
+        F3 covers: C2
+        F7 covers: C3 C5
     """
-    facilities = instance.facilities
-    clients = instance.clients
+    facs = inst.facilities
+    clts = inst.clients
 
-    # First line: open facilities by name
-    open_names = [facilities[j].name for j in sorted(open_facilities)]
     print("Open facilities:", file=out)
-    if open_names:
-        print(" ".join(open_names), file=out)
-    else:
-        print("(none)", file=out)
+    names = [facs[j].name for j in sorted(open_facilities)]
+    print(" ".join(names), file=out)
+    print("", file=out)
 
-    print("", file=out)  # blank line
-
-    # Coverage mapping
     print("Coverage:", file=out)
-    # Build mapping facility index -> list of client names
-    coverage_map: Dict[int, List[str]] = {j: [] for j in open_facilities}
+    cover_map: Dict[int, List[str]] = {j: [] for j in open_facilities}
     for ci, fj in assignment.items():
-        if fj in coverage_map:
-            coverage_map[fj].append(clients[ci].name)
+        if fj in cover_map:
+            cover_map[fj].append(clts[ci].name)
 
     for j in sorted(open_facilities):
-        fac_name = facilities[j].name
-        client_list = coverage_map.get(j, [])
-        if client_list:
-            print(f"{fac_name} covers: " + " ".join(client_list), file=out)
+        fname = facs[j].name
+        served = cover_map.get(j, [])
+        if served:
+            print(f"{fname} covers: " + " ".join(served), file=out)
         else:
-            # Facility opened but covers no clients (unlikely, but possible)
-            print(f"{fac_name} covers: (none)", file=out)
+            print(f"{fname} covers: (none)", file=out)
 
 
-# ----------------------------------------------------------
-# Distance Helpers
-# ----------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Distance helpers
+# ---------------------------------------------------------------------------
 
-def euclidean_distance(x1: float, y1: float, x2: float, y2: float) -> float:
+def euclidean(x1: float, y1: float, x2: float, y2: float) -> float:
     return math.hypot(x1 - x2, y1 - y2)
 
 
 def precompute_distances(inst: Instance) -> List[List[float]]:
     """
-    dist[c][f] = Euclidean distance between client c and facility f.
+    dist[c][f] = distance from client c to facility f.
     """
     dist: List[List[float]] = []
     for c in inst.clients:
         row = []
         for f in inst.facilities:
-            d = euclidean_distance(c.x, c.y, f.x, f.y)
-            row.append(d)
+            row.append(euclidean(c.x, c.y, f.x, f.y))
         dist.append(row)
     return dist
 
 
-# ----------------------------------------------------------
-# Greedy Approximation (Single Construction)
-# ----------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Randomized greedy construction
+# ---------------------------------------------------------------------------
 
-def greedy_cover(
+def greedy_randomized(
     inst: Instance,
-    rng: random.Random
+    rng: random.Random,
 ) -> Tuple[Set[int], Dict[int, int], float, int]:
     """
-    One greedy construction with random tie-breaking.
+    SINGLE randomized greedy construction.
 
-    Objective (approximate): minimize the number of open facilities while
-    covering all clients within the coverage distance. If some clients cannot be
-    covered by any facility within the coverage distance, assign them to the
-    nearest facility regardless (opening that facility if needed).
+    At each step, for each unopened facility j:
+      gain_j = # of currently uncovered clients it can cover (within R)
 
-    Returns:
-        open_facilities: set of facility indices
-        assignment: dict {client_index -> facility_index}
-        total_distance: sum of distances client -> assigned facility
-        num_open: number of open facilities
+    Instead of always taking argmax_j gain_j (deterministic), we use a
+    softmax-style choice:
+
+        P(pick j) ∝ exp(beta * gain_j)
+
+    so higher gain is more likely but not guaranteed. This introduces true
+    randomness between runs, letting the anytime wrapper improve with time.
+
+    Remaining uncovered clients are attached to their nearest facility
+    (opening that facility if needed).
     """
-    clients = inst.clients
-    facilities = inst.facilities
-    n_clients = len(clients)
-    n_facilities = len(facilities)
+    C = len(inst.clients)
+    F = len(inst.facilities)
     R = inst.coverage_distance
 
     dist = precompute_distances(inst)
 
-    # For each facility, precompute which clients it can cover (within distance R)
+    # Precompute cover sets
     cover_sets: List[Set[int]] = []
-    for j in range(n_facilities):
-        can_cover = {i for i in range(n_clients) if dist[i][j] <= R}
+    for j in range(F):
+        can_cover = {i for i in range(C) if dist[i][j] <= R}
         cover_sets.append(can_cover)
 
-    uncovered: Set[int] = set(range(n_clients))
+    uncovered: Set[int] = set(range(C))
     open_facilities: Set[int] = set()
     assignment: Dict[int, int] = {}
 
-    # Optionally mark initially-open facilities as open (if you want that behavior)
-    # Here we completely ignore them for simplicity (everything starts closed).
-    # If you want to honor them, uncomment the next block:
-    #
-    # for j, fac in enumerate(facilities):
-    #     if fac.initially_open:
-    #         open_facilities.add(j)
-    #         newly_covered = uncovered & cover_sets[j]
-    #         for c in newly_covered:
-    #             assignment[c] = j
-    #         uncovered -= newly_covered
+    beta = 0.4  # softness; larger = more greedy, smaller = more random
 
-    # Greedy loop: repeatedly pick the facility that covers the largest number
-    # of currently uncovered clients, breaking ties randomly.
+    # Greedy loop
     while True:
-        best_gain = 0
-        best_candidates: List[int] = []
-
-        for j in range(n_facilities):
-            if j in open_facilities:
-                continue
-            newly_covered = uncovered & cover_sets[j]
-            gain = len(newly_covered)
-            if gain > best_gain:
-                best_gain = gain
-                best_candidates = [j]
-            elif gain == best_gain and gain > 0:
-                # tie: record for random tie-breaking
-                best_candidates.append(j)
-
-        if best_gain == 0 or not best_candidates:
-            # No unopened facility can cover any new client within R
+        unopened = [j for j in range(F) if j not in open_facilities]
+        if not unopened:
             break
 
-        # Random tie-breaking among best facilities
-        chosen = rng.choice(best_candidates)
-        open_facilities.add(chosen)
-        newly_covered = uncovered & cover_sets[chosen]
-        for c in newly_covered:
-            assignment[c] = chosen
-        uncovered -= newly_covered
+        gains: List[int] = []
+        best_gain = 0
+        for j in unopened:
+            g = len(uncovered & cover_sets[j])
+            gains.append(g)
+            if g > best_gain:
+                best_gain = g
 
-    # If any client remains uncovered, assign it to its nearest facility
-    # (opening that facility if needed).
+        if best_gain == 0:
+            # no facility can cover any *new* client within R
+            break
+
+        # Softmax over gains
+        weights = [math.exp(beta * g) for g in gains]
+        total_w = sum(weights)
+        r = rng.random() * total_w
+        acc = 0.0
+        chosen = unopened[-1]  # fallback
+        for j, w in zip(unopened, weights):
+            acc += w
+            if r <= acc:
+                chosen = j
+                break
+
+        open_facilities.add(chosen)
+        newly = uncovered & cover_sets[chosen]
+        for c in newly:
+            assignment[c] = chosen
+        uncovered -= newly
+
+    # Fallback: any leftover clients go to their nearest facility
     for c in uncovered:
-        # Find nearest facility by distance
-        best_j = min(range(n_facilities), key=lambda j: dist[c][j])
+        best_j = min(range(F), key=lambda j: dist[c][j])
         open_facilities.add(best_j)
         assignment[c] = best_j
 
-    # Ensure all clients are assigned (sanity check)
-    for c_idx in range(n_clients):
-        if c_idx not in assignment:
-            # This should not happen, but just to be safe, assign to nearest facility
-            best_j = min(range(n_facilities), key=lambda j: dist[c_idx][j])
+    # Safety: ensure all clients assigned
+    for c in range(C):
+        if c not in assignment:
+            best_j = min(range(F), key=lambda j: dist[c][j])
             open_facilities.add(best_j)
-            assignment[c_idx] = best_j
+            assignment[c] = best_j
 
-    # Compute total distance for this solution
-    total_distance = 0.0
-    for c_idx, f_idx in assignment.items():
-        total_distance += dist[c_idx][f_idx]
+    # Compute total distance
+    total_dist = 0.0
+    for c, j in assignment.items():
+        total_dist += dist[c][j]
 
     num_open = len(open_facilities)
-    return open_facilities, assignment, total_distance, num_open
+    return open_facilities, assignment, total_dist, num_open
 
 
-# ----------------------------------------------------------
-# Anytime Wrapper
-# ----------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Anytime wrapper
+# ---------------------------------------------------------------------------
 
 def anytime(
     inst: Instance,
     time_limit: float,
-    seed: int | None = None
+    seed: int | None = None,
 ) -> Tuple[Set[int], Dict[int, int]]:
     """
-    Anytime wrapper:
+    Anytime loop:
+
     - Initialize RNG.
-    - Perform at least one greedy construction.
-    - While time remains, repeat the greedy construction with random tie-breaking.
-    - Keep the best solution seen so far:
-        1) fewer open facilities, then
-        2) smaller total distance.
+    - Run randomized greedy at least once.
+    - Re-run as many times as the time limit allows.
+    - Keep the best solution seen so far.
+
+    "Best" is lexicographic:
+        1. fewer open facilities
+        2. if tied, smaller total distance
     """
     rng = random.Random(seed)
     start = time.time()
     deadline = start + time_limit
 
-    # At least one run
-    best_open, best_assign, best_dist, best_num_open = greedy_cover(inst, rng)
+    # First construction
+    best_open, best_assign, best_dist, best_num = greedy_randomized(inst, rng)
     runs = 1
 
-    # Keep rerunning as long as we have time
     while time.time() < deadline:
-        open_f, assign, dist_val, num_open = greedy_cover(inst, rng)
+        o, a, d, k = greedy_randomized(inst, rng)
         runs += 1
+        if (k < best_num) or (k == best_num and d < best_dist):
+            best_open, best_assign, best_dist, best_num = o, a, d, k
 
-        # Compare (num_open, total_distance)
-        if (num_open < best_num_open) or (
-            num_open == best_num_open and dist_val < best_dist
-        ):
-            best_open, best_assign = open_f, assign
-            best_dist, best_num_open = dist_val, num_open
-
-    # You could print number of runs to stderr for debugging:
-    # print(f"Anytime runs: {runs}", file=sys.stderr)
+    # Debug if you want:
+    # print(f"[ANYTIME] runs = {runs}", file=sys.stderr)
 
     return best_open, best_assign
 
 
-# ----------------------------------------------------------
+# ---------------------------------------------------------------------------
 # Main
-# ----------------------------------------------------------
+# ---------------------------------------------------------------------------
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Anytime greedy approximation for a simple facility coverage problem."
+        description="Anytime stochastic greedy approximation for facility coverage."
     )
     parser.add_argument(
         "-t",
@@ -410,28 +354,27 @@ def main() -> None:
         "input_file",
         nargs="?",
         default="-",
-        help="Input file (or '-' / omitted for stdin).",
+        help="Input file (or '-' for stdin).",
     )
     parser.add_argument(
         "--seed",
         type=int,
         default=None,
-        help="Random seed (optional, for reproducible runs).",
+        help="Optional explicit random seed (for reproducible experiments).",
     )
-
     args = parser.parse_args()
 
-    # Read instance from file or stdin
+    # Read instance
     if args.input_file == "-" or args.input_file is None:
         inst = read_instance(sys.stdin)
     else:
         with open(args.input_file, "r", encoding="utf-8") as f:
             inst = read_instance(f)
 
-    # Run anytime greedy approximation
+    # Run anytime approximation
     open_facilities, assignment = anytime(inst, args.t, seed=args.seed)
 
-    # Output solution
+    # Print solution
     write_solution(inst, open_facilities, assignment, out=sys.stdout)
 
 
