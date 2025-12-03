@@ -1,0 +1,6 @@
+Open facilities:
+F7 F11
+
+Coverage:
+F7 covers: C2 C4 C5 C8 C9 C10 C11 C12 C13 C14
+F11 covers: C1 C3 C6 C7
