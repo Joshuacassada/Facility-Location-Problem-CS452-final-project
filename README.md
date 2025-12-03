@@ -66,3 +66,21 @@ Example:
 Coverage:
 - Facility1 covers: Alice, Charlie
 - Facility2 covers: Bob, Diana
+
+
+Overall Example input explained:
+
+Number of Clients and Number of Facilities
+
+Clients:
+- Alice: (2, 3)
+- Bob: (5, 4)
+- Charlie: (1, 7)
+- Delta: (6, 8)
+
+Facilities:
+- Facility1: (2, 4), open = False
+- Facility2: (5, 5), open = False
+- Facility3: (1, 6), open = False
+
+Coverage distance: 2.5

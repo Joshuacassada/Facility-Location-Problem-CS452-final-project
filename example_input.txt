@@ -7,19 +7,3 @@ F1 2 4 0
 F2 5 5 0
 F3 1 6 0
 2.5
-
-
-Translated:
-
-Clients:
-- Alice: (2, 3)
-- Bob: (5, 4)
-- Charlie: (1, 7)
-- Delta: (6, 8)
-
-Facilities:
-- Facility1: (2, 4), open = False
-- Facility2: (5, 5), open = False
-- Facility3: (1, 6), open = False
-
-Coverage distance: 2.5
