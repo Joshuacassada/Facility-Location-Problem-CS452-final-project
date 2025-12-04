@@ -127,7 +127,7 @@ def parse_output(path):
         if s.startswith("Facilities chosen"):
             mode = "chosen"
             continue
-        if s.startswith("Coverage mapping"):
+        if s.startswith("Unique Client Assignment"):
             mode = "covmap"
             continue
 
