@@ -425,7 +425,7 @@ def anytime(
     dist = precompute_distances(inst)
 
     # First local-search run
-    first_deadline = start + time_limit * 0.25
+    first_deadline = start + time_limit * 400
     if first_deadline > deadline:
         first_deadline = deadline
 

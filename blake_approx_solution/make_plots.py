@@ -172,7 +172,7 @@ def compute_total_distance(clients, facs, coverage):
 # -------------------------------------------------------------
 # ANYTIME IMPROVEMENT
 # -------------------------------------------------------------
-def run_anytime(case_file, time_values):
+def run_anytime(case_file, time_values, seed = 143):
     costs = []
 
     for t in time_values:
@@ -180,6 +180,7 @@ def run_anytime(case_file, time_values):
             "python3",
             SOLVER,
             "-t", str(t),
+            "--seed", str(seed),
             case_file
         ]
 
@@ -360,7 +361,7 @@ def generate_all_plots():
     # ANYTIME PLOT (unchanged)
     # ---------------------------------------------------------
     test_for_anytime = os.path.join(TESTCASE_DIR, "test_case_50.txt")
-    times = [0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 5.0]
+    times = [0.005, 0.2, 0.4, 0.8, 1.6, 3.2, 5.0]
 
     anytime_costs = run_anytime(test_for_anytime, times)
 
@@ -374,124 +375,6 @@ def generate_all_plots():
     plt.close()
 
     print("All plots generated successfully!")
-
-# def generate_all_plots():
-
-#     case_ids = []
-#     approx_facilities = []
-#     approx_costs = []
-#     exact_facilities = []
-#     exact_costs = []
-
-#     for fname in sorted(os.listdir(TESTCASE_DIR)):
-#         if not fname.startswith("test_case_"): 
-#             continue
-
-#         case_id = int(fname.split("_")[2].split(".")[0])
-#         input_path = os.path.join(TESTCASE_DIR, fname)
-#         approx_out = os.path.join(APPROX_OUT_DIR, fname.replace(".txt", "_out.txt"))
-#         exact_out = os.path.join(EXACT_OUT_DIR, fname.replace(".txt", ".out"))
-
-#         clients, facs, cov = parse_input(input_path)
-#         approx_open, approx_cov = parse_output(approx_out)
-
-#         if approx_open is None:
-#             continue
-
-#         a_cost = compute_total_distance(clients, facs, approx_cov)
-#         a_fac = len(approx_open)
-
-#         case_ids.append(case_id)
-#         approx_facilities.append(a_fac)
-#         approx_costs.append(a_cost)
-
-#         if os.path.exists(exact_out):
-#             ex_open, ex_cov = parse_output(exact_out)
-#             e_cost = compute_total_distance(clients, facs, ex_cov)
-#             e_fac = len(ex_open)
-#         else:
-#             e_cost = None
-#             e_fac = None
-
-#         exact_facilities.append(e_fac)
-#         exact_costs.append(e_cost)
-
-#     # Sort everything by test case ID
-#     zipped = sorted(zip(case_ids, approx_facilities, approx_costs, exact_facilities, exact_costs))
-#     case_ids, approx_facilities, approx_costs, exact_facilities, exact_costs = zip(*zipped)
-
-#     # ---------------------------------------------------------
-#     # Facilities Opened (Comparison)
-#     # ---------------------------------------------------------
-#     plt.figure(figsize=(10,6))
-#     plt.plot(case_ids, approx_facilities, '-o', label="Approx")
-#     if any(e is not None for e in exact_facilities):
-#         plt.plot(case_ids, [e for e in exact_facilities], '-s', label="Exact")
-#     plt.xlabel("Test Case")
-#     plt.ylabel("# Facilities")
-#     plt.title("Facilities Opened: Approx vs Exact")
-#     plt.grid(True)
-#     plt.legend()
-#     plt.savefig(os.path.join(BASE_DIR, "plot_facilities_comparison.png"))
-#     plt.close()
-
-#     # ---------------------------------------------------------
-#     # Facilities Opened (Approx Only)
-#     # ---------------------------------------------------------
-#     plt.figure(figsize=(10,6))
-#     plt.plot(case_ids, approx_facilities, '-o')
-#     plt.xlabel("Test Case #")
-#     plt.ylabel("# of Facilities Opened")
-#     plt.title("Number of Facilities Opened (Approx)")
-#     plt.grid(True)
-#     plt.savefig(os.path.join(BASE_DIR, "plot_facilities_opened.png"))
-#     plt.close()
-
-#     # ---------------------------------------------------------
-#     # Distance Comparison (Approx vs Exact)
-#     # ---------------------------------------------------------
-#     plt.figure(figsize=(10,6))
-#     plt.plot(case_ids, approx_costs, '-o', color="orange", label="Approx")
-#     if any(e is not None for e in exact_costs):
-#         plt.plot(case_ids, exact_costs, '-s', color="green", label="Exact")
-#     plt.xlabel("Test Case")
-#     plt.ylabel("Total Distance")
-#     plt.title("Total Assignment Distance: Approx vs Exact")
-#     plt.grid(True)
-#     plt.legend()
-#     plt.savefig(os.path.join(BASE_DIR, "plot_total_distance_comparison.png"))
-#     plt.close()
-
-#     # ---------------------------------------------------------
-#     # Distance (Approx Only)
-#     # ---------------------------------------------------------
-#     plt.figure(figsize=(10,6))
-#     plt.plot(case_ids, approx_costs, '-o', color="orange")
-#     plt.xlabel("Test Case #")
-#     plt.ylabel("Sum of Distances")
-#     plt.title("Total Assignment Distance (Approx)")
-#     plt.grid(True)
-#     plt.savefig(os.path.join(BASE_DIR, "plot_total_distance.png"))
-#     plt.close()
-
-#     # ---------------------------------------------------------
-#     # ANYTIME PLOT
-#     # ---------------------------------------------------------
-#     test_for_anytime = os.path.join(TESTCASE_DIR, "test_case_50.txt")
-#     times = [0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 5.0]
-
-#     anytime_costs = run_anytime(test_for_anytime, times)
-
-#     plt.figure(figsize=(10,6))
-#     plt.plot(times, anytime_costs, '-o')
-#     plt.xlabel("Allowed Time (seconds)")
-#     plt.ylabel("Best Cost Found")
-#     plt.title("Anytime Improvement (Approximation Improves Over Time)")
-#     plt.grid(True)
-#     plt.savefig(os.path.join(BASE_DIR, "plot_anytime.png"))
-#     plt.close()
-
-#     print("All plots generated successfully!")
 
 
 if __name__ == "__main__":
