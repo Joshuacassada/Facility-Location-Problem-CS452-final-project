@@ -4,7 +4,7 @@
 SOLVER="../blake_approx_solution/facility_location_approx_blake.py"
 OUTPUT_DIR="../blake_approx_solution/test"
 TIME_LIMIT=1.0
-SEED=42
+SEED=142
 # =======================================================================
 
 mkdir -p "$OUTPUT_DIR"

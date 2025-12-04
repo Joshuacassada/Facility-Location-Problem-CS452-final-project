@@ -96,6 +96,20 @@ def euclidean(x1: float, y1: float, x2: float, y2: float) -> float:
     return math.hypot(x1 - x2, y1 - y2)
 
 
+def precompute_distances(inst: Instance) -> List[List[float]]:
+    """
+    dist[c][f] = distance from client c to facility f.
+    """
+    dist: List[List[float]] = []
+    for c in inst.clients:
+        row = []
+        for f in inst.facilities:
+            row.append(euclidean(c.x, c.y, f.x, f.y))
+        dist.append(row)
+    return dist
+
+
+
 def _next_data_line(stream) -> str:
     """Return next non-empty NON-comment line."""
     while True:
@@ -353,8 +367,69 @@ def local_search(
     return best_open, best_assign
 
 
+# # ---------------------------------------------------------------------------
+# # Anytime wrapper (analogous to solve_exact, but time-bounded)
+# # ---------------------------------------------------------------------------
+
+# def anytime(
+#     inst: Instance,
+#     time_limit: float,
+#     seed: Optional[int] = None,
+# ) -> Tuple[Set[int], Dict[int, int]]:
+#     """
+#     Anytime driver: repeatedly runs local_search with shrinking time budgets
+#     until the global deadline is reached, keeping the best feasible solution.
+#     """
+#     rng = random.Random(seed)
+#     start = time.time()
+#     deadline = start + time_limit
+
+#     dist = precompute_distances(inst)
+
+#     # First local-search run
+#     first_deadline = start + time_limit * 0.25
+#     if first_deadline > deadline:
+#         first_deadline = deadline
+
+#     best_open, best_assign = local_search(inst, dist, first_deadline, rng)
+#     _, _, best_dist = assign_clients_with_hard_coverage(
+#         best_open, dist, inst.coverage_distance
+#     )
+#     best_cost = objective(len(best_open), best_dist)
+
+#     # Additional restarts while time remains
+#     while time.time() < deadline:
+#         remaining = deadline - time.time()
+#         if remaining <= 0:
+#             break
+
+#         run_deadline = time.time() + remaining * 0.25
+#         if run_deadline > deadline:
+#             run_deadline = deadline
+
+#         try:
+#             cand_open, cand_assign = local_search(inst, dist, run_deadline, rng)
+#         except ValueError:
+#             # Instance infeasible; stop trying.
+#             break
+
+#         _, feasible, cand_dist = assign_clients_with_hard_coverage(
+#             cand_open, dist, inst.coverage_distance
+#         )
+#         if not feasible:
+#             continue
+
+#         cand_cost = objective(len(cand_open), cand_dist)
+#         if cand_cost < best_cost:
+#             best_cost = cand_cost
+#             best_open = cand_open
+#             best_assign = cand_assign
+
+#     return best_open, best_assign
+
+
 # ---------------------------------------------------------------------------
-# Anytime wrapper (analogous to solve_exact, but time-bounded)
+# Anytime wrapper
 # ---------------------------------------------------------------------------
 
 def anytime(
@@ -363,16 +438,26 @@ def anytime(
     seed: Optional[int] = None,
 ) -> Tuple[Set[int], Dict[int, int]]:
     """
-    Anytime driver: repeatedly runs local_search with shrinking time budgets
-    until the global deadline is reached, keeping the best feasible solution.
+    Anytime loop for the local-search + simulated-annealing solver.
+
+    - Initialize RNG and precompute all client→facility distances.
+    - Run local_search at least once with an initial 25% time budget.
+    - While time remains, keep launching new local_search runs, each given
+      25% of the remaining time.
+    - Track the best feasible solution seen so far using the scalar objective():
+          1) fewer open facilities (encoded via OPEN_WEIGHT)
+          2) if tied, smaller total assignment distance.
     """
     rng = random.Random(seed)
     start = time.time()
     deadline = start + time_limit
 
+    # Precompute distances once for all runs
     dist = precompute_distances(inst)
 
+    # -------------------------------
     # First local-search run
+    # -------------------------------
     first_deadline = start + time_limit * 0.25
     if first_deadline > deadline:
         first_deadline = deadline
@@ -383,12 +468,17 @@ def anytime(
     )
     best_cost = objective(len(best_open), best_dist)
 
-    # Additional restarts while time remains
+    runs = 1  # number of completed local-search runs
+
+    # -------------------------------
+    # Additional restarts (anytime)
+    # -------------------------------
     while time.time() < deadline:
         remaining = deadline - time.time()
         if remaining <= 0:
             break
 
+        # Give this run 25% of whatever time remains
         run_deadline = time.time() + remaining * 0.25
         if run_deadline > deadline:
             run_deadline = deadline
@@ -396,7 +486,7 @@ def anytime(
         try:
             cand_open, cand_assign = local_search(inst, dist, run_deadline, rng)
         except ValueError:
-            # Instance infeasible; stop trying.
+            # Instance infeasible even with all facilities open; stop trying.
             break
 
         _, feasible, cand_dist = assign_clients_with_hard_coverage(
@@ -406,12 +496,19 @@ def anytime(
             continue
 
         cand_cost = objective(len(cand_open), cand_dist)
+        runs += 1
+
+        # Keep the best solution seen so far
         if cand_cost < best_cost:
             best_cost = cand_cost
             best_open = cand_open
             best_assign = cand_assign
 
+    # Optional debug (matches your teammate's style)
+    # print(f"[ANYTIME] runs = {runs}", file=sys.stderr)
+
     return best_open, best_assign
+
 
 
 # ---------------------------------------------------------------------------

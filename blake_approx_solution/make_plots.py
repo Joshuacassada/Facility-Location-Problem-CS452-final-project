@@ -317,7 +317,7 @@ def generate_all_plots():
     # ANYTIME PLOT
     # ---------------------------------------------------------
     test_for_anytime = os.path.join(TESTCASE_DIR, "test_case_50.txt")
-    times = [0.01, 0.2, 0.4, 0.8, 1.6, 3.2, 5.0]
+    times = [0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 5.0]
 
     anytime_costs = run_anytime(test_for_anytime, times)
 
