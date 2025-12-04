@@ -79,33 +79,39 @@ def assign_clients_to_facilities(clients, selected, coverage_dist):
 
 def solve_exact(clients, facilities, coverage_dist):
     """
-    Find the subset of facilities that covers all clients
-    with MINIMUM TOTAL ASSIGNMENT DISTANCE.
+    Find the MINIMUM NUMBER of facilities needed to cover all clients
+    within the coverage distance constraint.
+    (Set Cover variant)
     """
     best_solution = None
-    best_distance = float("inf")
+    best_count = float("inf")
     best_assignments = None
+    best_distance = None
 
-    # Check all subsets of facilities
+    # Check all subsets of facilities, starting from smallest
     for r in range(1, len(facilities) + 1):
         for subset in itertools.combinations(facilities, r):
             if all_clients_covered(subset, clients, coverage_dist):
-                # Calculate total distance for this subset
-                try:
-                    assignments, total_dist = assign_clients_to_facilities(
-                        clients, subset, coverage_dist
-                    )
+                # Found a valid solution with r facilities
+                if r < best_count:
+                    best_count = r
+                    best_solution = subset
                     
-                    # Keep track of the solution with minimum total distance
-                    if total_dist < best_distance:
-                        best_distance = total_dist
-                        best_solution = subset
+                    # Calculate assignments and distance for reporting
+                    try:
+                        assignments, total_dist = assign_clients_to_facilities(
+                            clients, subset, coverage_dist
+                        )
                         best_assignments = assignments
-                except ValueError:
-                    # This shouldn't happen if all_clients_covered passed
-                    continue
+                        best_distance = total_dist
+                    except ValueError:
+                        continue
+        
+        # Once we find a solution with r facilities, no need to check larger r
+        if best_solution is not None:
+            break
 
-    return best_solution, best_assignments, best_distance
+    return best_solution, best_assignments, best_distance, best_count
 
 
 def main():
@@ -115,16 +121,18 @@ def main():
 
     clients, facilities, coverage_dist = parse_input(sys.argv[1])
 
-    best, assignments, total_dist = solve_exact(clients, facilities, coverage_dist)
+    best, assignments, total_dist, num_facs = solve_exact(clients, facilities, coverage_dist)
 
     if best is None:
         print("No feasible solution exists.")
         return
 
     print("\n=== OPTIMAL SOLUTION FOUND ===")
-    print(f"Total assignment distance: {total_dist:.2f}")
+    print(f"Objective: Minimize number of facilities")
+    print(f"Facilities opened: {num_facs} (OPTIMAL - minimum needed)")
+    print(f"Total assignment distance: {total_dist:.2f} (for this solution)")
     print(f"Coverage distance constraint: {coverage_dist}")
-    print(f"Facilities chosen ({len(best)}):")
+    print(f"\nFacilities chosen ({len(best)}):")
     for fac in best:
         print(f"  {fac[0]} at ({fac[1]}, {fac[2]})")
 

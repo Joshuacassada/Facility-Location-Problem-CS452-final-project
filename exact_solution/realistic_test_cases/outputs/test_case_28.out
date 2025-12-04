@@ -1,10 +1,12 @@
 
 === OPTIMAL SOLUTION FOUND ===
-Total assignment distance: 154.07
+Objective: Minimize number of facilities
+Facilities opened: 5 (OPTIMAL - minimum needed)
+Total assignment distance: 164.31 (for this solution)
 Coverage distance constraint: 26.01
-Facilities chosen (6):
+
+Facilities chosen (5):
   F1 at (92.35, 24.61)
-  F3 at (61.13, 79.73)
   F4 at (42.45, 35.17)
   F8 at (7.24, 59.43)
   F9 at (47.69, 81.97)
@@ -12,8 +14,7 @@ Facilities chosen (6):
 
 Unique Client Assignment:
 F1 covers: C6, C9
-F3 covers: C3, C4
 F4 covers: C1
 F8 covers: C2, C8
-F9 covers: C10
+F9 covers: C3, C4, C10
 F12 covers: C5, C7
