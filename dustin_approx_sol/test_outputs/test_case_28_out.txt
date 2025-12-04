@@ -1,9 +1,16 @@
-Open facilities:
-F1 F4 F8 F9 F12
 
-Coverage:
-F1 covers: C9 C6
+=== APPROXIMATION SOLUTION FOUND ===
+Coverage distance: 26.01
+Facilities chosen (5):
+  F1 at (92.35, 24.61)
+  F4 at (42.45, 35.17)
+  F8 at (7.24, 59.43)
+  F9 at (47.69, 81.97)
+  F12 at (90.71, 76.87)
+
+Coverage mapping:
+F1 covers: C6, C9
 F4 covers: C1
-F8 covers: C2 C8
-F9 covers: C10 C3 C4
-F12 covers: C5 C7
+F8 covers: C2, C8
+F9 covers: C10, C3, C4
+F12 covers: C5, C7

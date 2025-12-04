@@ -1,7 +1,12 @@
-Open facilities:
-F1 F5 F6
 
-Coverage:
-F1 covers: C2 C3 C5
+=== APPROXIMATION SOLUTION FOUND ===
+Coverage distance: 29.93
+Facilities chosen (3):
+  F1 at (13.18, 21.15)
+  F5 at (46.81, 93.90)
+  F6 at (75.45, 81.49)
+
+Coverage mapping:
+F1 covers: C2, C3, C5
 F5 covers: C4
 F6 covers: C1

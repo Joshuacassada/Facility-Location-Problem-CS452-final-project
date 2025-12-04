@@ -140,37 +140,47 @@ def write_solution(
     out=sys.stdout,
 ) -> None:
     """
-    Print solution in the agreed format:
-
-        Open facilities:
-        F1 F3 F7
-
-        Coverage:
-        F1 covers: C1 C4
-        F3 covers: C2
-        F7 covers: C3 C5
+    Print solution in the exact same style as the OPTIMAL solver,
+    but with the header changed to '=== APPROXIMATION SOLUTION FOUND ==='.
     """
+
     facs = inst.facilities
     clts = inst.clients
 
-    print("Open facilities:", file=out)
-    names = [facs[j].name for j in sorted(open_facilities)]
-    print(" ".join(names), file=out)
-    print("", file=out)
+    print("")
 
-    print("Coverage:", file=out)
+    # === HEADER ===
+    print("=== APPROXIMATION SOLUTION FOUND ===", file=out)
+
+    # Coverage distance (your instance stores it)
+    print(f"Coverage distance: {inst.coverage_distance:.2f}", file=out)
+
+    # Number of facilities chosen
+    print(f"Facilities chosen ({len(open_facilities)}):", file=out)
+
+    # Each facility with coordinates
+    for j in sorted(open_facilities):
+        f = facs[j]
+        print(f"  {f.name} at ({f.x:.2f}, {f.y:.2f})", file=out)
+
+    print("", file=out)
+    print("Coverage mapping:", file=out)
+
+    # Build mapping facility → list of client names
     cover_map: Dict[int, List[str]] = {j: [] for j in open_facilities}
     for ci, fj in assignment.items():
         if fj in cover_map:
             cover_map[fj].append(clts[ci].name)
 
+    # Print coverage lists
     for j in sorted(open_facilities):
-        fname = facs[j].name
-        served = cover_map.get(j, [])
-        if served:
-            print(f"{fname} covers: " + " ".join(served), file=out)
+        clients = sorted(cover_map[j])
+        if clients:
+            client_str = ", ".join(clients)
         else:
-            print(f"{fname} covers: (none)", file=out)
+            client_str = "(none)"
+        print(f"{facs[j].name} covers: {client_str}", file=out)
+
 
 
 # ---------------------------------------------------------------------------
