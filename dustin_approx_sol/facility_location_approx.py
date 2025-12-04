@@ -245,7 +245,7 @@ def greedy_randomized(
     open_facilities: Set[int] = set()
     assignment: Dict[int, int] = {}
 
-    beta = 0.4  # softness; larger = more greedy, smaller = more random
+    beta = 0.15  # softness; larger = more greedy, smaller = more random
 
     # Greedy loop
     while True:

@@ -10,7 +10,7 @@ Facilities chosen (5):
 
 Coverage mapping:
 F2 covers: C12, C5
-F3 covers: C14, C15, C9
+F3 covers: C15, C9
 F5 covers: C2, C8
 F8 covers: C6, C7
-F13 covers: C1, C10, C11, C13, C3, C4
+F13 covers: C1, C10, C11, C13, C14, C3, C4

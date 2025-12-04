@@ -2,13 +2,13 @@
 === APPROXIMATION SOLUTION FOUND ===
 Coverage distance: 42.07
 Facilities chosen (4):
-  F8 at (45.20, 63.73)
+  F10 at (46.76, 58.01)
   F13 at (36.06, 4.56)
   F15 at (86.74, 48.62)
   F16 at (56.80, 31.95)
 
 Coverage mapping:
-F8 covers: C10, C2, C4, C7
+F10 covers: C10, C2, C4, C7
 F13 covers: C14, C6, C9
 F15 covers: C1, C11, C12, C13, C5, C8
 F16 covers: C3

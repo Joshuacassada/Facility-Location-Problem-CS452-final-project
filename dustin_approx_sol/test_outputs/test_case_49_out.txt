@@ -1,22 +1,24 @@
 
 === APPROXIMATION SOLUTION FOUND ===
 Coverage distance: 19.60
-Facilities chosen (8):
+Facilities chosen (9):
   F2 at (86.87, 84.43)
   F4 at (64.40, 6.49)
   F6 at (24.31, 99.65)
   F7 at (7.12, 67.37)
+  F12 at (42.61, 6.72)
   F14 at (55.66, 90.47)
   F15 at (82.89, 34.55)
   F17 at (14.59, 14.02)
-  F24 at (83.99, 45.08)
+  F23 at (61.13, 53.34)
 
 Coverage mapping:
 F2 covers: C9
-F4 covers: C12, C5, C6, C8
+F4 covers: C12, C6
 F6 covers: C13
 F7 covers: C17
+F12 covers: C5, C8
 F14 covers: C15, C2, C4
 F15 covers: C11, C3
 F17 covers: C1, C10, C16, C7
-F24 covers: C14
+F23 covers: C14

@@ -4,15 +4,15 @@ Coverage distance: 25.65
 Facilities chosen (6):
   F2 at (27.28, 95.71)
   F6 at (56.82, 79.05)
-  F14 at (59.46, 29.82)
+  F11 at (88.05, 49.58)
   F15 at (35.93, 10.67)
-  F16 at (10.04, 41.67)
-  F21 at (81.79, 61.01)
+  F18 at (9.53, 36.48)
+  F20 at (47.07, 25.96)
 
 Coverage mapping:
 F2 covers: C18
-F6 covers: C1, C14, C16, C17
-F14 covers: C13, C15, C3, C5, C8
-F15 covers: C19, C9
-F16 covers: C12, C4
-F21 covers: C10, C11, C2, C20, C6, C7
+F6 covers: C1, C10, C11, C14, C16, C17, C7
+F11 covers: C13, C2, C20, C6
+F15 covers: C19
+F18 covers: C12, C4
+F20 covers: C15, C3, C5, C8, C9
