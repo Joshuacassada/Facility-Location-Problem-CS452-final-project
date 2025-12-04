@@ -82,3 +82,7 @@ Coverage mapping:
 F1 covers: C2
 F3 covers: C1, C4
 F4 covers: C5, C2
+
+or you can just run the "run_test_cases.bat" program that is in "exact_solution" folder.
+
+This will create and run test cases.
