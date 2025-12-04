@@ -1,0 +1,16 @@
+
+=== OPTIMAL SOLUTION FOUND ===
+Coverage distance: 31.46
+Facilities chosen (5):
+  F1 at (64.0, 16.71)
+  F2 at (67.69, 75.9)
+  F7 at (38.43, 67.68)
+  F10 at (22.27, 24.33)
+  F11 at (5.73, 98.9)
+
+Coverage mapping:
+F1 covers: C3, C6, C8, C10
+F2 covers: C7, C12
+F7 covers: C1, C5, C7, C9
+F10 covers: C1, C2, C4
+F11 covers: C11
