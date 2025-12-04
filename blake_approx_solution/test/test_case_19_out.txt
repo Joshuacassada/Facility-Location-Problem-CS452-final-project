@@ -1,3 +1,5 @@
+Total distance: 333.8836
+
 Open facilities:
 F3 F6 F7
 
