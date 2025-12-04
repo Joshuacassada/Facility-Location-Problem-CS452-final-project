@@ -42,7 +42,7 @@ since each client may need to check every open facility in the worst case.
 
 A single local-search run performs at most O(m²) neighborhood moves (a standard polynomial cap for local-search heuristics). Each move requires a full reassignment evaluation, giving:
 
-𝑂(2𝑚 ⋅ 𝑛𝑚) = 𝑂(𝑛 3𝑚)
+𝑂(2𝑚 ⋅ 𝑛𝑚) = 𝑂(2𝑚𝑛 ⋅ 2𝑚^2)
 
 
 All operations inside this loop run in polynomial time with respect to the input size.

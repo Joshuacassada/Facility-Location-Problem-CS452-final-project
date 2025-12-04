@@ -7,7 +7,16 @@ import matplotlib.pyplot as plt
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TESTCASE_DIR = os.path.join(BASE_DIR, "..", "testcases")
 APPROX_OUT_DIR = os.path.join(BASE_DIR, "test")
-EXACT_OUT_DIR = os.path.join(BASE_DIR, "..", "exact_solution", "outputs")
+# EXACT_OUT_DIR = os.path.join(BASE_DIR, "..", "exact_solution", "outputs")
+
+EXACT_OUT_DIR = os.path.join(
+    BASE_DIR,
+    "..",
+    "exact_solution",
+    "realistic_test_cases",
+    "outputs"
+)
+
 
 SOLVER = os.path.join(BASE_DIR, "facility_location_approx_blake.py")
 
@@ -46,33 +55,100 @@ def parse_input(path):
 # Output Parsing
 # -------------------------------------------------------------
 def parse_output(path):
+    """
+    Parse either:
+      (A) Approx format from Blake/Dustin:
+
+            Total distance: ...
+            Open facilities:
+            F1 F3 F7
+
+            Coverage:
+            F1 covers: C1 C4
+            F3 covers: C2
+            F7 covers: C3 C5
+
+      (B) Exact solver format:
+
+            === OPTIMAL SOLUTION FOUND ===
+            Coverage distance: 61.56
+            Facilities chosen (2):
+              F4 at (60.04, 31.82)
+              F5 at (66.98, 96.69)
+
+            Coverage mapping:
+            F4 covers: C1, C2, C3, C5, C6, C8, C9
+            F5 covers: C1, C2, C4, C7, C9
+    """
     if not os.path.exists(path):
         return None, None
 
     with open(path) as f:
-        lines = f.read().splitlines()
+        lines = [line.rstrip("\n") for line in f]
 
+    # --------- Case A: approx format ("Open facilities") ----------
+    if any("Open facilities" in line for line in lines):
+        mode = None
+        open_facs: list[str] = []
+        coverage: dict[str, list[str]] = {}
+
+        for line in lines:
+            s = line.strip()
+            if not s:
+                continue
+            if s.startswith("Open facilities"):
+                mode = "open"
+                continue
+            if s.startswith("Coverage"):
+                mode = "cov"
+                continue
+            if mode == "open":
+                # line with facility names: "F1 F3 F7"
+                open_facs = s.split()
+            if mode == "cov" and "covers:" in s:
+                fac, rest = s.split("covers:")
+                fac = fac.strip()
+                coverage[fac] = rest.strip().split()
+
+        if not open_facs:
+            return None, None
+        return open_facs, coverage
+
+    # --------- Case B: exact solver format ("Facilities chosen" / "Coverage mapping") ----------
     mode = None
-    open_facs = []
-    coverage = {}
+    open_facs: list[str] = []
+    coverage: dict[str, list[str]] = {}
 
     for line in lines:
         s = line.strip()
         if not s:
             continue
-        if s.startswith("Open"):
-            mode = "open"
+
+        if s.startswith("Facilities chosen"):
+            mode = "chosen"
             continue
-        if s.startswith("Coverage"):
-            mode = "cov"
+        if s.startswith("Coverage mapping"):
+            mode = "covmap"
             continue
-        if mode == "open":
-            open_facs = s.split()
-        if mode == "cov" and "covers:" in s:
+
+        if mode == "chosen":
+            # Example: "F2 at (54.5, 90.05)"
+            parts = s.split()
+            if parts:
+                fac_name = parts[0]   # "F2"
+                open_facs.append(fac_name)
+
+        elif mode == "covmap" and "covers:" in s:
+            # Example: "F2 covers: C1, C6, C7"
             fac, rest = s.split("covers:")
             fac = fac.strip()
-            coverage[fac] = rest.strip().split()
+            # split, strip commas
+            tokens = [tok.strip().strip(",") for tok in rest.strip().split()]
+            clients = [t for t in tokens if t]   # remove empties
+            coverage[fac] = clients
 
+    if not open_facs:
+        return None, None
     return open_facs, coverage
 
 
@@ -153,7 +229,7 @@ def generate_all_plots():
         case_id = int(fname.split("_")[2].split(".")[0])
         input_path = os.path.join(TESTCASE_DIR, fname)
         approx_out = os.path.join(APPROX_OUT_DIR, fname.replace(".txt", "_out.txt"))
-        exact_out = os.path.join(EXACT_OUT_DIR, fname.replace(".txt", "_out.txt"))
+        exact_out = os.path.join(EXACT_OUT_DIR, fname.replace(".txt", ".out"))
 
         clients, facs, cov = parse_input(input_path)
         approx_open, approx_cov = parse_output(approx_out)

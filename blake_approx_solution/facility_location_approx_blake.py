@@ -158,6 +158,8 @@ def write_solution(
     
     """
     Print solution in the agreed format:
+    
+        Total distance: <value>
 
         Open facilities:
         F1 F3 F7
@@ -169,6 +171,17 @@ def write_solution(
     """
     facs = inst.facilities
     clts = inst.clients
+    
+    # ---- compute total distance of this solution ----
+    total_dist = 0.0
+    for ci, fj in assignment.items():
+        c = clts[ci]
+        f = facs[fj]
+        total_dist += euclidean(c.x, c.y, f.x, f.y)
+
+    # print total distance first (for humans)
+    print(f"Total distance: {total_dist:.4f}", file=out)
+    print("", file=out)
 
     print("Open facilities:", file=out)
     names = [facs[j].name for j in sorted(open_facilities)]
