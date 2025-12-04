@@ -8,7 +8,7 @@ echo Running first 25 Facility Location test cases...
 
 if not exist "%OUTPUT_DIR%" mkdir "%OUTPUT_DIR%"
 
-for /L %%i in (1,1,25) do (
+for /L %%i in (17,1,42) do (
     set FILE=%TEST_DIR%\test_case_%%i.txt
     echo === Running test_case_%%i.txt ===
 
