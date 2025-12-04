@@ -50,6 +50,31 @@ def all_clients_covered(facilities_subset, clients, coverage_dist):
     return True
 
 
+def assign_clients_to_facilities(clients, selected, coverage_dist):
+    """
+    Assign each client to EXACTLY ONE facility (the closest one in range).
+    Facilities can take multiple clients, but each client appears only once.
+    """
+    assignment = {fac[0]: [] for fac in selected}
+
+    for cname, cx, cy in clients:
+        best_fac = None
+        best_dist = float("inf")
+
+        for fname, fx, fy in selected:
+            d = distance((cx, cy), (fx, fy))
+            if d <= coverage_dist and d < best_dist:
+                best_dist = d
+                best_fac = fname
+
+        if best_fac is None:
+            raise ValueError(f"Client {cname} cannot be assigned to any chosen facility.")
+
+        assignment[best_fac].append(cname)
+
+    return assignment
+
+
 def solve_exact(clients, facilities, coverage_dist):
     best_solution = None
     best_count = float("inf")
@@ -84,13 +109,14 @@ def main():
     for fac in best:
         print(f"  {fac[0]} at ({fac[1]}, {fac[2]})")
 
-    print("\nCoverage mapping:")
+    # Unique assignments
+    assignments = assign_clients_to_facilities(clients, best, coverage_dist)
+
+    print("\nUnique Client Assignments:")
     for fac in best:
-        covered_clients = []
-        for cname, cx, cy in clients:
-            if distance((cx, cy), (fac[1], fac[2])) <= coverage_dist:
-                covered_clients.append(cname)
-        print(f"{fac[0]} covers: {', '.join(covered_clients)}")
+        fname = fac[0]
+        clients_here = assignments[fname]
+        print(f"{fname} covers: {', '.join(clients_here) if clients_here else 'None'}")
 
 
 if __name__ == "__main__":
