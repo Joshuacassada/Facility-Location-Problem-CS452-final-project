@@ -1,6 +1,7 @@
-import os
 import math
+import os
 import subprocess
+
 import matplotlib.pyplot as plt
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -63,6 +64,11 @@ def parse_output(path):
                 continue
 
             if s.startswith("Coverage mapping"):
+                in_facility_section = False
+                in_coverage_section = True
+                continue
+            
+            if s.startswith("Unique"):
                 in_facility_section = False
                 in_coverage_section = True
                 continue
@@ -228,11 +234,11 @@ def generate_all_plots():
     plt.plot(case_ids_sel, approx_fac_sel, '-o', label="Approximation")
     plt.plot(case_ids_sel, exact_fac_sel, '-s', label="Exact")
     plt.title("Facilities Opened (Cases 17–42): Approx vs Exact")
-    plt.xlabel("Test Case")
+    plt.xlabel("Test Cases 17-42")
     plt.ylabel("# Facilities")
     plt.grid(True)
     plt.legend()
-    plt.savefig(os.path.join(BASE_DIR, "plot_facilities_comparison_17_42.png"))
+    plt.savefig(os.path.join(BASE_DIR, "plot_facilities_comparison.png"))
     plt.show()
 
     # -------- TOTAL DISTANCE Comparison --------
@@ -240,11 +246,11 @@ def generate_all_plots():
     plt.plot(case_ids_sel, approx_cost_sel, '-o', color="orange", label="Approximation")
     plt.plot(case_ids_sel, exact_cost_sel, '-s', color="green", label="Exact")
     plt.title("Total Distance (Cases 17–42): Approx vs Exact")
-    plt.xlabel("Test Case")
+    plt.xlabel("Test Cases 17-42")
     plt.ylabel("Total Assignment Distance")
     plt.grid(True)
     plt.legend()
-    plt.savefig(os.path.join(BASE_DIR, "plot_total_distance_comparison_17_42.png"))
+    plt.savefig(os.path.join(BASE_DIR, "plot_total_distance_comparison.png"))
     plt.show()
 
     # ------------------------------------------
