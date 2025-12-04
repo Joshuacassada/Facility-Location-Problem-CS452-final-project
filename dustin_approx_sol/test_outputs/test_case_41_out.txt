@@ -5,14 +5,14 @@ Facilities chosen (6):
   F1 at (26.45, 15.48)
   F2 at (70.76, 19.28)
   F5 at (0.21, 33.29)
-  F7 at (43.50, 76.33)
-  F11 at (66.77, 83.80)
-  F20 at (70.81, 44.56)
+  F8 at (32.17, 64.96)
+  F16 at (51.87, 55.70)
+  F21 at (64.41, 97.26)
 
 Coverage mapping:
-F1 covers: C14, C17, C2, C5
-F2 covers: C11, C12, C6
+F1 covers: C14, C17, C2
+F2 covers: C11, C12, C3, C5, C6
 F5 covers: C1, C10, C13
-F7 covers: C16, C4
-F11 covers: C7, C9
-F20 covers: C15, C18, C19, C3, C8
+F8 covers: C16, C4
+F16 covers: C15, C18, C19, C8, C9
+F21 covers: C7

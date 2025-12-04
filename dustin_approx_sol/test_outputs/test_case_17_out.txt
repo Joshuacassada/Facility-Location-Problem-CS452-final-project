@@ -1,12 +1,10 @@
 
 === APPROXIMATION SOLUTION FOUND ===
-Coverage distance: 35.48
-Facilities chosen (3):
-  F3 at (29.17, 98.63)
-  F4 at (25.83, 42.08)
-  F5 at (55.14, 93.24)
+Coverage distance: 11.00
+Facilities chosen (2):
+  F3 at (50.50, 50.00)
+  F4 at (20.50, 50.00)
 
 Coverage mapping:
-F3 covers: C2, C3, C6
-F4 covers: C4, C5
-F5 covers: C1, C7
+F3 covers: C5, C6
+F4 covers: C1, C2, C3, C4
