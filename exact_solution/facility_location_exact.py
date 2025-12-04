@@ -53,9 +53,10 @@ def all_clients_covered(facilities_subset, clients, coverage_dist):
 def assign_clients_to_facilities(clients, selected, coverage_dist):
     """
     Assign each client to EXACTLY ONE facility (the closest one in range).
-    Facilities can take multiple clients, but each client appears only once.
+    Returns (assignment_dict, total_distance)
     """
     assignment = {fac[0]: [] for fac in selected}
+    total_dist = 0.0
 
     for cname, cx, cy in clients:
         best_fac = None
@@ -71,23 +72,40 @@ def assign_clients_to_facilities(clients, selected, coverage_dist):
             raise ValueError(f"Client {cname} cannot be assigned to any chosen facility.")
 
         assignment[best_fac].append(cname)
+        total_dist += best_dist
 
-    return assignment
+    return assignment, total_dist
 
 
 def solve_exact(clients, facilities, coverage_dist):
+    """
+    Find the subset of facilities that covers all clients
+    with MINIMUM TOTAL ASSIGNMENT DISTANCE.
+    """
     best_solution = None
-    best_count = float("inf")
+    best_distance = float("inf")
+    best_assignments = None
 
     # Check all subsets of facilities
     for r in range(1, len(facilities) + 1):
         for subset in itertools.combinations(facilities, r):
             if all_clients_covered(subset, clients, coverage_dist):
-                if r < best_count:
-                    best_count = r
-                    best_solution = subset
+                # Calculate total distance for this subset
+                try:
+                    assignments, total_dist = assign_clients_to_facilities(
+                        clients, subset, coverage_dist
+                    )
+                    
+                    # Keep track of the solution with minimum total distance
+                    if total_dist < best_distance:
+                        best_distance = total_dist
+                        best_solution = subset
+                        best_assignments = assignments
+                except ValueError:
+                    # This shouldn't happen if all_clients_covered passed
+                    continue
 
-    return best_solution
+    return best_solution, best_assignments, best_distance
 
 
 def main():
@@ -97,22 +115,20 @@ def main():
 
     clients, facilities, coverage_dist = parse_input(sys.argv[1])
 
-    best = solve_exact(clients, facilities, coverage_dist)
+    best, assignments, total_dist = solve_exact(clients, facilities, coverage_dist)
 
     if best is None:
         print("No feasible solution exists.")
         return
 
     print("\n=== OPTIMAL SOLUTION FOUND ===")
-    print(f"Coverage distance: {coverage_dist}")
+    print(f"Total assignment distance: {total_dist:.2f}")
+    print(f"Coverage distance constraint: {coverage_dist}")
     print(f"Facilities chosen ({len(best)}):")
     for fac in best:
         print(f"  {fac[0]} at ({fac[1]}, {fac[2]})")
 
-    # Unique assignments
-    assignments = assign_clients_to_facilities(clients, best, coverage_dist)
-
-    print("\nUnique Client Assignments:")
+    print("\nUnique Client Assignment:")
     for fac in best:
         fname = fac[0]
         clients_here = assignments[fname]

@@ -1,12 +1,23 @@
 
 === OPTIMAL SOLUTION FOUND ===
-Coverage distance: 31.93
-Facilities chosen (3):
-  F5 at (70.64, 46.26)
+Total assignment distance: 155.87
+Coverage distance constraint: 31.93
+Facilities chosen (8):
+  F2 at (0.05, 43.63)
+  F4 at (44.85, 44.11)
+  F7 at (0.06, 29.55)
+  F8 at (83.13, 29.11)
+  F12 at (2.34, 81.65)
   F14 at (1.48, 18.69)
-  F17 at (30.17, 67.35)
+  F15 at (35.52, 57.27)
+  F16 at (73.35, 85.43)
 
-Unique Client Assignments:
-F5 covers: C3, C10, C11
-F14 covers: C4, C5, C9
-F17 covers: C1, C2, C6, C7, C8
+Unique Client Assignment:
+F2 covers: C1
+F4 covers: C4, C8
+F7 covers: C9
+F8 covers: C3, C10
+F12 covers: C6, C7
+F14 covers: C5
+F15 covers: C2
+F16 covers: C11
