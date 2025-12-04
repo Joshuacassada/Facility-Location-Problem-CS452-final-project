@@ -163,7 +163,7 @@ def run_anytime(case_file, time_values):
 
 
 # -------------------------------------------------------------
-# MAIN: Generate All Plots (FIXED)
+# MAIN: Generate All Plots
 # -------------------------------------------------------------
 def generate_all_plots():
 
@@ -218,7 +218,7 @@ def generate_all_plots():
     case_ids, approx_facilities, approx_costs, exact_facilities, exact_costs = zip(*zipped)
 
     # ------------------------------------------------------------
-    # APPROX vs EXACT — ONLY CASES 17 THROUGH 42 (FIXED)
+    # APPROX vs EXACT — ONLY CASES 17 THROUGH 42
     # ------------------------------------------------------------
     selected_indices = [i for i, cid in enumerate(case_ids) if 17 <= cid <= 42]
 
@@ -275,7 +275,7 @@ def generate_all_plots():
     plt.show()
 
     # ------------------------------------------
-    # ANYTIME IMPROVEMENT PLOT (UNCHANGED)
+    # ANYTIME IMPROVEMENT PLOT
     # ------------------------------------------
     test_for_anytime = os.path.join(TESTCASE_DIR, "test_case_50.txt")
     times = [0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 5.0]
