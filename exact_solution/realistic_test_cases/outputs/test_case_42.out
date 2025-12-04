@@ -13,7 +13,7 @@ Facilities chosen (10):
   F15 at (37.45, 96.35)
   F17 at (66.25, 61.87)
 
-Coverage mapping:
+Unique Client Assignments:
 F1 covers: C4, C7
 F4 covers: C3
 F6 covers: C2
@@ -23,4 +23,4 @@ F11 covers: C8
 F12 covers: C1, C5, C6
 F13 covers: C16
 F15 covers: C9
-F17 covers: C5, C11, C13, C15
+F17 covers: C11, C13, C15
