@@ -1,0 +1,10 @@
+Open facilities:
+F2 F5 F9 F10 F12 F14
+
+Coverage:
+F2 covers: C2 C3 C5
+F5 covers: C7
+F9 covers: C6 C10
+F10 covers: C1 C8
+F12 covers: C4 C9 C11
+F14 covers: C12
