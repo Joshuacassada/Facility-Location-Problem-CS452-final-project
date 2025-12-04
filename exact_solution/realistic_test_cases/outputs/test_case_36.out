@@ -6,7 +6,7 @@ Facilities chosen (3):
   F2 at (49.32, 66.19)
   F6 at (89.84, 24.68)
 
-Coverage mapping:
+Unique Client Assignments:
 F1 covers: C5, C7, C8, C10, C11, C13
 F2 covers: C3, C4, C12
 F6 covers: C1, C2, C6, C9, C14, C15

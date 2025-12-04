@@ -8,9 +8,9 @@ Facilities chosen (5):
   F8 at (4.9, 39.01)
   F13 at (60.13, 54.76)
 
-Coverage mapping:
-F2 covers: C4, C5, C7, C10, C12
+Unique Client Assignments:
+F2 covers: C5, C10, C12
 F3 covers: C9, C14, C15
 F5 covers: C2, C8
 F8 covers: C6, C7
-F13 covers: C1, C3, C4, C10, C11, C13, C14
+F13 covers: C1, C3, C4, C11, C13

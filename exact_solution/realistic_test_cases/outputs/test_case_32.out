@@ -8,8 +8,8 @@ Facilities chosen (5):
   F14 at (97.26, 13.85)
   F16 at (64.22, 30.46)
 
-Coverage mapping:
-F6 covers: C1, C4
+Unique Client Assignments:
+F6 covers: C4
 F7 covers: C7, C8
 F12 covers: C1, C3, C6, C9
 F14 covers: C10
