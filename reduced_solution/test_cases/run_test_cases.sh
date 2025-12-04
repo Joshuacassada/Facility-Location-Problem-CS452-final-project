@@ -5,8 +5,8 @@
 ###############################################
 
 LOWER_BOUND_TIMEOUT=2
-APPROX1_TIME=1        # INTERNAL time limit passed as -t to approx solver
-EXACT_TIMEOUT=20      # Shell timeout for exact solver
+APPROX1_TIME=0.001        # INTERNAL time limit passed as -t to approx solver
+EXACT_TIMEOUT=10         # Shell timeout for exact solver
 
 LOWER_BOUND_CMD="python3 ../lower_bound.py"
 APPROX1_CMD="python3 ../../dustin_approx_sol/facility_location_approx.py"
@@ -19,7 +19,6 @@ START=1
 END=50
 
 OUTPUT_FILE="../results.csv"
-COST_PARSER="../compute_cost_from_output.py"
 ###############################################
 
 
@@ -49,7 +48,7 @@ for ((i=$START; i<=$END; i++)); do
 
 
     ##########################
-    # APPROX
+    # APPROX SOLVER
     ##########################
     A1_OUT="tmp_a1_$i.txt"
 
@@ -59,9 +58,10 @@ for ((i=$START; i<=$END; i++)); do
     if [[ $EXIT_CODE -ne 0 ]]; then
         A1="ERR"
     else
-        # Count number of opened facility IDs (e.g., F1, F5,...)
-        A1=$(grep -o "F[0-9]\+" "$A1_OUT" | wc -l)
-        [[ $A1 -eq 0 ]] && A1="ERR"
+        # Extract number inside parentheses in "Facilities chosen (#):"
+        A1=$(grep "Facilities chosen" "$A1_OUT" \
+            | sed -E 's/.*\(([0-9]+)\).*/\1/')
+        [[ -z "$A1" ]] && A1="ERR"
     fi
 
 
@@ -77,10 +77,11 @@ for ((i=$START; i<=$END; i++)); do
     if [[ $? -eq 124 ]]; then
         EX="TIMEOUT"
     else
-        EX=$(grep -o "F[0-9]\+" "$EX_OUT" | wc -l)
-        [[ $EX -eq 0 ]] && EX="ERR"
+        # Extract number inside parentheses in "Facilities chosen (#):"
+        EX=$(grep "Facilities chosen" "$EX_OUT" \
+            | sed -E 's/.*\(([0-9]+)\).*/\1/')
+        [[ -z "$EX" ]] && EX="ERR"
     fi
-
 
 
     ##########################
@@ -90,7 +91,7 @@ for ((i=$START; i<=$END; i++)); do
 
 
     ##########################
-    # CLEAN TMP FILES
+    # CLEAN TEMP FILES
     ##########################
     rm -f "$A1_OUT"
     rm -f "$EX_OUT"
