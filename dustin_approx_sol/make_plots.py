@@ -284,7 +284,7 @@ def generate_all_plots():
     plt.savefig(os.path.join(BASE_DIR, "plot_anytime.png"))
     plt.show()
 
-    print("All plots generated successfully using CORRECT distance metric!")
+    print("All plots generated!")
 
 
 if __name__ == "__main__":
