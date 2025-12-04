@@ -1,9 +1,16 @@
-Open facilities:
-F5 F10 F11 F12 F14
 
-Coverage:
-F5 covers: C18 C3 C4
-F10 covers: C9 C10 C11 C20
-F11 covers: C2 C5 C7 C8 C12 C19
-F12 covers: C14 C13 C6 C16
-F14 covers: C1 C17 C15
+=== APPROXIMATION SOLUTION FOUND ===
+Coverage distance: 25.24
+Facilities chosen (5):
+  F5 at (74.97, 91.25)
+  F10 at (73.56, 3.99)
+  F11 at (11.83, 37.49)
+  F12 at (48.00, 66.59)
+  F14 at (88.80, 48.55)
+
+Coverage mapping:
+F5 covers: C18, C3, C4
+F10 covers: C10, C11, C20, C9
+F11 covers: C12, C19, C2, C5, C7, C8
+F12 covers: C13, C14, C16, C6
+F14 covers: C1, C15, C17
