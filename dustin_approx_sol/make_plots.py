@@ -1,6 +1,7 @@
-import os
 import math
+import os
 import subprocess
+
 import matplotlib.pyplot as plt
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -63,6 +64,11 @@ def parse_output(path):
                 continue
 
             if s.startswith("Coverage mapping"):
+                in_facility_section = False
+                in_coverage_section = True
+                continue
+            
+            if s.startswith("Unique"):
                 in_facility_section = False
                 in_coverage_section = True
                 continue
