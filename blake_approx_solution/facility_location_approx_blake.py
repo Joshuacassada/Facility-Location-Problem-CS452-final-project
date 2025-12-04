@@ -286,7 +286,7 @@ def objective(num_open: int, total_dist: float) -> float:
       primary: minimize num_open
       secondary: minimize total_dist
     """
-    OPEN_WEIGHT = 1_000.0
+    OPEN_WEIGHT = 20.0
     return num_open * OPEN_WEIGHT + total_dist
 
 

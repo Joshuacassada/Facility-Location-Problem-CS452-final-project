@@ -158,6 +158,10 @@ def parse_output(path):
 def compute_total_distance(clients, facs, coverage):
     total = 0.0
     for fac, client_list in coverage.items():
+        if fac not in facs:
+            print(f"WARNING: approx output lists facility {fac} not in input. Skipping.")
+            continue
+        
         fx, fy = facs[fac]
         for c in client_list:
             cx, cy = clients[c]
