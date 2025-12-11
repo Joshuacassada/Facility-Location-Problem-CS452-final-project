@@ -2,18 +2,32 @@
 """
 reduction.py
 
-Reduce a 2D Facility Location instance to a Max-3SAT instance.
+Reduce a 2D coverage-based Facility Location instance to a Max-3SAT instance.
 
-Input (from stdin or file):
-    f c
-    <f facility opening costs>
-    <f lines of facility coords: x y>
-    <c customer demands>
-    <c lines of customer coords: x y>
+New input format (from stdin or file):
+
+    c f
+    <c lines: client_name cx cy>
+    <f lines: facility_name fx fy open_flag>
+    <coverage_distance>
+
+Where:
+    - c is the number of clients
+    - f is the number of facilities
+    - (cx, cy) and (fx, fy) are 2D coordinates
+    - open_flag is an initial open/closed indicator (ignored by the reduction)
+    - coverage_distance is the maximum allowed distance between a client
+      and a facility for service.
+
+For the purposes of the reduction, we create a simplified UFLP-style instance:
+    - Each facility has uniform opening cost 1.0
+    - Each client has uniform demand 1.0
+    - A client j may only be assigned to facility i if
+          dist(i, j) <= coverage_distance
 
 We construct Boolean variables:
     Y_i   : facility i is open
-    X_ij  : customer j assigned to facility i
+    X_ij  : client j assigned to facility i
 plus helper variables to encode costs and OR-chains in 3-CNF.
 
 Output (to stdout) in the Max-3SAT group's format:
@@ -67,70 +81,83 @@ class CNF:
 
 
 # ---------------------------------------------------------------------
-# Read FLP instance (2D coordinates format)
+# Read coverage-based FLP instance (2D coordinates format)
 # ---------------------------------------------------------------------
+
+def _next_data_line(stream: TextIO) -> str:
+    """Read next non-empty, non-comment line or raise on EOF."""
+    line = stream.readline()
+    while line and (line.strip() == "" or line.lstrip().startswith("#")):
+        line = stream.readline()
+    if not line:
+        raise ValueError("Unexpected EOF while reading input")
+    return line.strip()
+
 
 def read_flp_instance(stream: TextIO):
     """
-    Read the 2D FLP format:
+    Read the coverage-based FLP format:
 
-        f c
-        <facility opening costs>
-        <f lines: fx fy>
-        <customer demands>
-        <c lines: cx cy>
+        c f
+        <c lines: client_name cx cy>
+        <f lines: facility_name fx fy open_flag>
+        <coverage_distance>
+
+    Returns:
+        f, c, open_costs, fac_coords, cust_demands, cust_coords, coverage
+    where:
+        - open_costs is a length-f list of uniform facility opening costs (1.0)
+        - cust_demands is a length-c list of uniform client demands (1.0)
     """
-    # Read first non-empty, non-comment line for f c
-    header = stream.readline()
-    while header and (header.strip() == "" or header.lstrip().startswith("#")):
-        header = stream.readline()
-    if not header:
-        raise ValueError("Empty input")
 
-    f_str, c_str = header.split()
-    f, c = int(f_str), int(c_str)
+    header = _next_data_line(stream)
+    parts = header.split()
+    if len(parts) != 2:
+        raise ValueError(f"Expected header 'c f', got: {header!r}")
+    c_str, f_str = parts
+    c = int(c_str)
+    f = int(f_str)
 
-    # Facility opening costs (one line)
-    line = stream.readline().strip()
-    while line == "" or line.startswith("#"):
-        line = stream.readline().strip()
-    open_costs = list(map(float, line.split()))
-    if len(open_costs) != f:
-        raise ValueError(f"Expected {f} facility opening costs, got {len(open_costs)}")
+    # Client coordinates
+    cust_coords: List[Tuple[float, float]] = []
+    for _ in range(c):
+        line = _next_data_line(stream)
+        tokens = line.split()
+        if len(tokens) < 3:
+            raise ValueError(
+                f"Client line must have at least 3 tokens (name x y), got: {line!r}"
+            )
+        # name = tokens[0]
+        x_str, y_str = tokens[1], tokens[2]
+        cust_coords.append((float(x_str), float(y_str)))
 
     # Facility coordinates
     fac_coords: List[Tuple[float, float]] = []
-    while len(fac_coords) < f:
-        line = stream.readline()
-        if not line:
-            raise ValueError("Unexpected EOF while reading facility coords")
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        x_str, y_str = line.split()
+    for _ in range(f):
+        line = _next_data_line(stream)
+        tokens = line.split()
+        if len(tokens) < 4:
+            raise ValueError(
+                "Facility line must have at least 4 tokens "
+                "(name x y open_flag), got: {line!r}"
+            )
+        # name = tokens[0]
+        x_str, y_str = tokens[1], tokens[2]
+        # open_flag = tokens[3]  # ignored for reduction
         fac_coords.append((float(x_str), float(y_str)))
 
-    # Customer demands
-    line = stream.readline().strip()
-    while line == "" or line.startswith("#"):
-        line = stream.readline().strip()
-    cust_demands = list(map(float, line.split()))
-    if len(cust_demands) != c:
-        raise ValueError(f"Expected {c} customer demands, got {len(cust_demands)}")
+    # Coverage distance
+    coverage_line = _next_data_line(stream)
+    try:
+        coverage = float(coverage_line)
+    except ValueError as e:
+        raise ValueError(f"Invalid coverage distance {coverage_line!r}") from e
 
-    # Customer coordinates
-    cust_coords: List[Tuple[float, float]] = []
-    while len(cust_coords) < c:
-        line = stream.readline()
-        if not line:
-            raise ValueError("Unexpected EOF while reading customer coords")
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        x_str, y_str = line.split()
-        cust_coords.append((float(x_str), float(y_str)))
+    # Uniform costs / demands for reduction
+    open_costs = [1.0] * f
+    cust_demands = [1.0] * c
 
-    return f, c, open_costs, fac_coords, cust_demands, cust_coords
+    return f, c, open_costs, fac_coords, cust_demands, cust_coords, coverage
 
 
 def build_service_costs(
@@ -140,9 +167,13 @@ def build_service_costs(
     fac_coords: List[Tuple[float, float]],
     cust_demands: List[float],
     cust_coords: List[Tuple[float, float]],
+    coverage: float,
 ) -> List[List[float]]:
     """
     service_cost[j][i] = demand_j * dist(customer j, facility i)
+
+    If dist > coverage, the assignment is forbidden and we encode that by
+    storing a negative sentinel value service_cost[j][i] = -1.0.
     """
     service_cost = [[0.0 for _ in range(f)] for _ in range(c)]
     for j in range(c):
@@ -151,7 +182,11 @@ def build_service_costs(
         for i in range(f):
             fx, fy = fac_coords[i]
             dist = math.dist((cx, cy), (fx, fy))
-            service_cost[j][i] = dj * dist
+            if dist > coverage:
+                # Forbidden edge: handled specially in the reduction.
+                service_cost[j][i] = -1.0
+            else:
+                service_cost[j][i] = dj * dist
     return service_cost
 
 
@@ -172,6 +207,9 @@ def reduce_flp_to_max3sat(
 
     facility_scale and edge_scale control how many copies of each
     cost-related "bonus" clause we add so counts stay reasonable.
+
+    For pairs (i, j) where service_cost[j][i] < 0, the assignment X_ij
+    is forbidden (dist > coverage) and we force X_ij = FALSE.
     """
     cnf = CNF()
 
@@ -186,10 +224,12 @@ def reduce_flp_to_max3sat(
     # Feasibility clauses
     # -------------------------------------------------------------
 
-    # (A) Each customer j must be assigned to at least one facility.
+    # (A) Each client j must be assigned to at least one facility.
     # Big OR over X_{i,j}, converted to 3-CNF via chain.
     for j in range(c):
         xs = [cnf.lit(f"X_{i}_{j}") for i in range(f)]
+        # If some X_{i,j} are later forced false, that's fine;
+        # the SAT solver will handle the implications.
         if len(xs) <= 3:
             cnf.add_clause(xs)
         else:
@@ -203,14 +243,16 @@ def reduce_flp_to_max3sat(
             while idx < len(xs) - 2:
                 new_z = f"Z_{j}_{z_idx}"
                 cnf.new_var(new_z)
-                cnf.add_clause([cnf.lit(prev_z, True), xs[idx], cnf.lit(new_z)])
+                cnf.add_clause(
+                    [cnf.lit(prev_z, True), xs[idx], cnf.lit(new_z)]
+                )
                 prev_z = new_z
                 idx += 1
                 z_idx += 1
             # last clause
             cnf.add_clause([cnf.lit(prev_z, True), xs[-2], xs[-1]])
 
-    # (B) Each customer j assigned to at most one facility:
+    # (B) Each client j assigned to at most one facility:
     # For all i < k, (~X_ij OR ~X_kj).
     for j in range(c):
         for i in range(f):
@@ -259,10 +301,16 @@ def reduce_flp_to_max3sat(
     for i in range(f):
         for j in range(c):
             cij = service_cost[j][i]
+
+            if cij < 0:
+                # Forbidden edge (dist > coverage): force X_ij = FALSE.
+                cnf.add_clause([cnf.lit(f"X_{i}_{j}", True)])
+                continue
+
             # Scale to keep clause count reasonable.
             scaled = max(1, int(round(cij / edge_scale)))
             if scaled <= 0:
-                continue
+                scaled = 1
 
             Lij = f"L_{i}_{j}"
             Tij = f"T_l_{i}_{j}"
@@ -303,7 +351,7 @@ def write_max3sat(cnf: CNF, out: TextIO) -> None:
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(
-        description="Reduce 2D Facility Location instance to Max-3SAT."
+        description="Reduce 2D coverage-based Facility Location instance to Max-3SAT."
     )
     parser.add_argument(
         "input_file",
@@ -334,12 +382,14 @@ def main(argv=None):
     else:
         stream = open(args.input_file, "r")
 
-    f, c, open_costs, fac_coords, cust_demands, cust_coords = read_flp_instance(stream)
+    f, c, open_costs, fac_coords, cust_demands, cust_coords, coverage = read_flp_instance(stream)
 
     if stream is not sys.stdin:
         stream.close()
 
-    service_cost = build_service_costs(f, c, open_costs, fac_coords, cust_demands, cust_coords)
+    service_cost = build_service_costs(
+        f, c, open_costs, fac_coords, cust_demands, cust_coords, coverage
+    )
 
     cnf = reduce_flp_to_max3sat(
         f, c, open_costs, service_cost,
